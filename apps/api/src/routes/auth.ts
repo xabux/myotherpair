@@ -1,0 +1,82 @@
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import { createClient } from '@supabase/supabase-js';
+import { pool } from '../db/client.js';
+import { env } from '../config/env.js';
+import type { AuthSignUpBody, AuthSignInBody } from '@myotherpair/types';
+
+const router = Router();
+
+const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+// POST /auth/sign-up
+router.post('/sign-up', async (req: Request, res: Response) => {
+  const { email, password, name } = req.body as AuthSignUpBody;
+
+  if (!email || !password) {
+    res.status(400).json({ error: 'email and password are required' });
+    return;
+  }
+
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+
+  if (error) {
+    res.status(400).json({ error: error.message });
+    return;
+  }
+
+  // Mirror user into our users table
+  await pool.query(
+    `INSERT INTO users (id, email, name)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (id) DO NOTHING`,
+    [data.user.id, email, name ?? null]
+  );
+
+  res.status(201).json({ data: { id: data.user.id, email } });
+});
+
+// POST /auth/sign-in
+router.post('/sign-in', async (req: Request, res: Response) => {
+  const { email, password } = req.body as AuthSignInBody;
+
+  if (!email || !password) {
+    res.status(400).json({ error: 'email and password are required' });
+    return;
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    res.status(401).json({ error: error.message });
+    return;
+  }
+
+  res.json({
+    data: {
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+    },
+  });
+});
+
+// POST /auth/sign-out
+router.post('/sign-out', async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    await supabase.auth.admin.signOut(token);
+  }
+  res.json({ data: { message: 'Signed out' } });
+});
+
+export default router;

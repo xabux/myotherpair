@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+  ::selection {
+    background-color: #fd267a;
+    color: #ffffff;
+  }
+  :focus-visible {
+    outline: 2px solid #fd267a;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .text-gradient {
+    background: linear-gradient(to right, #fd267a, #ff6036);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .border-gradient {
+    border: 1.5px solid transparent;
+    background-clip: padding-box;
+    position: relative;
+  }
+  .animate-float-1 { animation: float-chip-1 3s ease-in-out infinite; }
+  .animate-float-2 { animation: float-chip-2 4s ease-in-out infinite 0.7s; }
+  .animate-float-3 { animation: float-chip-3 3.5s ease-in-out infinite 1.2s; }
+}
+
+/* ─── Theme CSS variables ──────────────────────────────────────────────────── */
+
+[data-theme="dark"] {
+  /* App dashboard */
+  --app-bg:         #0a0a0c;
+  --app-surface:    #1c1c24;
+  --app-border:     rgba(255, 255, 255, 0.07);
+  --app-text:       #ffffff;
+  --app-text-muted: rgba(255, 255, 255, 0.50);
+  --app-text-faint: rgba(255, 255, 255, 0.35);
+}
+
+[data-theme="light"] {
+  /* App dashboard */
+  --app-bg:         #f8f7f4;
+  --app-surface:    #ffffff;
+  --app-border:     rgba(0, 0, 0, 0.08);
+  --app-text:       #0f0f12;
+  --app-text-muted: rgba(15, 15, 18, 0.55);
+  --app-text-faint: rgba(15, 15, 18, 0.40);
+}
+
+/* ─── Global theme transitions ─────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  transition:
+    background-color 0.3s ease,
+    color            0.3s ease,
+    border-color     0.3s ease,
+    box-shadow       0.3s ease;
+}
+
+/* Don't transition transforms/opacity (breaks animations) */
+.animate-spin,
+.animate-bounce,
+[style*="animation"],
+[style*="transform"] {
+  transition:
+    background-color 0.3s ease,
+    color            0.3s ease,
+    border-color     0.3s ease !important;
+}
+
+/* ─── Light mode overrides ─────────────────────────────────────────────────── */
+
+/* ── Backgrounds ── */
+[data-theme="light"] .bg-dark-900     { background-color: #f8f7f4; }
+[data-theme="light"] .bg-dark-800     { background-color: #ffffff; }
+[data-theme="light"] .bg-dark-700     { background-color: #f0eeea; }
+[data-theme="light"] .bg-dark-600     { background-color: #e8e4df; }
+[data-theme="light"] .bg-dark-900\/90 { background-color: rgba(248, 247, 244, 0.90); }
+[data-theme="light"] .bg-dark-900\/95 { background-color: rgba(248, 247, 244, 0.95); }
+
+/* Transparent white → transparent black */
+[data-theme="light"] .bg-white\/\[0\.02\] { background-color: rgba(0, 0, 0, 0.02); }
+[data-theme="light"] .bg-white\/\[0\.08\] { background-color: rgba(0, 0, 0, 0.05); }
+[data-theme="light"] .bg-white\/5     { background-color: rgba(0, 0, 0, 0.04); }
+[data-theme="light"] .bg-white\/8     { background-color: rgba(0, 0, 0, 0.05); }
+[data-theme="light"] .bg-white\/10    { background-color: rgba(0, 0, 0, 0.07); }
+
+/* ── Borders ── */
+[data-theme="light"] .border-white\/5  { border-color: rgba(0, 0, 0, 0.05); }
+[data-theme="light"] .border-white\/8  { border-color: rgba(0, 0, 0, 0.06); }
+[data-theme="light"] .border-white\/10 { border-color: rgba(0, 0, 0, 0.09); }
+[data-theme="light"] .border-white\/15 { border-color: rgba(0, 0, 0, 0.11); }
+[data-theme="light"] .border-white\/20 { border-color: rgba(0, 0, 0, 0.13); }
+
+/* ── Text ── */
+[data-theme="light"] .text-white      { color: #0f0f12; }
+[data-theme="light"] .text-white\/80  { color: rgba(15, 15, 18, 0.85); }
+[data-theme="light"] .text-white\/70  { color: rgba(15, 15, 18, 0.75); }
+[data-theme="light"] .text-white\/60  { color: rgba(15, 15, 18, 0.68); }
+[data-theme="light"] .text-white\/50  { color: rgba(15, 15, 18, 0.60); }
+[data-theme="light"] .text-white\/40  { color: rgba(15, 15, 18, 0.50); }
+[data-theme="light"] .text-white\/35  { color: rgba(15, 15, 18, 0.44); }
+[data-theme="light"] .text-white\/30  { color: rgba(15, 15, 18, 0.38); }
+[data-theme="light"] .text-white\/25  { color: rgba(15, 15, 18, 0.32); }
+[data-theme="light"] .text-white\/20  { color: rgba(15, 15, 18, 0.26); }
+
+/* Placeholder */
+[data-theme="light"] .placeholder-white\/25::placeholder { color: rgba(15, 15, 18, 0.30); }
+
+/* ── Preserve white text on colored / gradient backgrounds ── */
+/* Any element with an inline gradient background keeps white text */
+[data-theme="light"] [style*="gradient"].text-white,
+[data-theme="light"] [style*="gradient"] .text-white { color: #ffffff; }
+/* bg-tinder (CSS class gradient) */
+[data-theme="light"] .bg-tinder.text-white,
+[data-theme="light"] .bg-tinder .text-white          { color: #ffffff; }
+/* Accent-colored inline backgrounds */
+[data-theme="light"] [style*="e63946"].text-white,
+[data-theme="light"] [style*="e63946"] .text-white,
+[data-theme="light"] [style*="fd267a"].text-white,
+[data-theme="light"] [style*="fd267a"] .text-white   { color: #ffffff; }
+/* bg-white buttons (e.g. "It's a Match" button in Hero) */
+[data-theme="light"] .bg-white.text-brand-500 { color: #fd267a; } /* stays */
+
+/* ── Hover states ── */
+[data-theme="light"] .hover\:bg-white\/5:hover   { background-color: rgba(0, 0, 0, 0.04); }
+[data-theme="light"] .hover\:bg-white\/10:hover  { background-color: rgba(0, 0, 0, 0.07); }
+[data-theme="light"] .hover\:text-white:hover    { color: #0f0f12; }
+[data-theme="light"] .hover\:border-white\/5:hover  { border-color: rgba(0, 0, 0, 0.05); }
+[data-theme="light"] .hover\:border-white\/10:hover { border-color: rgba(0, 0, 0, 0.09); }
+
+/* ── Shadows — stronger in light mode for depth ── */
+[data-theme="light"] .shadow-card       { box-shadow: 0 2px 16px rgba(0,0,0,.09), 0 1px 4px rgba(0,0,0,.05); }
+[data-theme="light"] .shadow-card-hover { box-shadow: 0 8px 40px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.07); }
+[data-theme="light"] .shadow-glow       { box-shadow: 0 0 40px rgba(253,38,122,.20); }
+[data-theme="light"] .shadow-glow-sm    { box-shadow: 0 0 20px rgba(253,38,122,.15); }
+[data-theme="light"] .shadow-accent-glow { box-shadow: 0 0 24px rgba(230,57,70,.18); }
+
+/* ── Body base in light mode ── */
+[data-theme="light"] body {
+  background-color: #f8f7f4;
+  color: #0f0f12;
+}
+
+/* ─── Multi-step form transitions ──────────────────────────────────────────── */
+
+@keyframes step-enter-right {
+  from { opacity: 0; transform: translateX(48px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes step-enter-left {
+  from { opacity: 0; transform: translateX(-48px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* OTP shake */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15%       { transform: translateX(-8px); }
+  30%       { transform: translateX(8px); }
+  45%       { transform: translateX(-6px); }
+  60%       { transform: translateX(6px); }
+  75%       { transform: translateX(-4px); }
+  90%       { transform: translateX(4px); }
+}
+
+/* Falling shoe emojis */
+@keyframes fall-shoe {
+  from { transform: translateY(-40px) rotate(0deg); }
+  to   { transform: translateY(110vh) rotate(var(--rot, 360deg)); }
+}
+
+/* Floating phone chips */
+@keyframes float-chip-1 {
+  0%, 100% { transform: translateY(0px);  }
+  50%      { transform: translateY(-8px); }
+}
+@keyframes float-chip-2 {
+  0%, 100% { transform: translateY(0px);   }
+  50%      { transform: translateY(-10px); }
+}
+@keyframes float-chip-3 {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-6px); }
+}
