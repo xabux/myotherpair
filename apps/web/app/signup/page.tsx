@@ -361,7 +361,7 @@ export default function SignUpPage() {
   // ── OTP state ──────────────────────────────────────────────────────────────
   const [otpMode,    setOtpMode]    = useState(false);
   const [otpMethod,  setOtpMethod]  = useState<'email'|'phone'|null>(null);
-  const [otp,        setOtp]        = useState(['','','','','','','','']);
+  const [otp,        setOtp]        = useState(['','','','','','']);
   const [otpError,   setOtpError]   = useState<string | null>(null);
   const [otpSuccess, setOtpSuccess] = useState(false);
   const [resendSecs, setResendSecs] = useState(0);
@@ -392,7 +392,7 @@ export default function SignUpPage() {
     next[i] = val;
     setOtp(next);
     setOtpError(null);
-    if (val && i < 7) otpInputs.current[i + 1]?.focus();
+    if (val && i < 5) otpInputs.current[i + 1]?.focus();
     // Auto-verify when all 8 filled
     if (next.every(d => d !== '') && val) {
       verifyOtp(next);
@@ -406,8 +406,8 @@ export default function SignUpPage() {
   };
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
-    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8);
-    if (text.length === 8) {
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (text.length === 6) {
       const next = text.split('');
       setOtp(next);
       setOtpError(null);
@@ -417,7 +417,7 @@ export default function SignUpPage() {
 
   const verifyOtp = async (digits: string[]) => {
     const code = digits.join('');
-    if (code.length < 8) return;
+    if (code.length < 6) return;
 
     let result;
     if (otpMethod === 'phone') {
@@ -429,7 +429,7 @@ export default function SignUpPage() {
 
     if (result.error) {
       setOtpError('Wrong code — try again');
-      setOtp(['','','','','','','','']);
+      setOtp(['','','','','','']);
       setTimeout(() => otpInputs.current[0]?.focus(), 50);
       return;
     }
@@ -660,7 +660,7 @@ export default function SignUpPage() {
                         : `Sent to ${form.countryCode} ${form.phone}`}
                     </p>
 
-                    {/* 8-digit boxes */}
+                    {/* 6-digit boxes */}
                     <div
                       className="flex gap-3 mb-6"
                       style={otpError ? { animation: 'shake 0.4s ease-out' } : {}}
@@ -676,7 +676,7 @@ export default function SignUpPage() {
                           value={digit}
                           onChange={e => handleOtpInput(i, e.target.value)}
                           onKeyDown={e => handleOtpKeyDown(i, e)}
-                          className={`w-10 h-14 text-center text-xl font-bold rounded-2xl border bg-white/5 text-white outline-none transition-all ${
+                          className={`w-12 h-14 text-center text-xl font-bold rounded-2xl border bg-white/5 text-white outline-none transition-all ${
                             otpError
                               ? 'border-red-500 bg-red-500/10 text-red-400'
                               : digit
