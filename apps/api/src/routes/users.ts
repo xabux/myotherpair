@@ -4,6 +4,8 @@ import { pool } from '../db/client.js';
 import { requireAuth } from '../middleware/auth.js';
 import type { UpdateUserBody } from '@myotherpair/types';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const router = Router();
 
 // GET /users/me — authenticated
@@ -60,6 +62,10 @@ router.patch('/me', requireAuth, async (req: Request, res: Response) => {
 
 // GET /users/:id — public
 router.get('/:id', async (req: Request, res: Response) => {
+  if (!UUID_RE.test(String(req.params['id'] ?? ''))) {
+    res.status(400).json({ error: 'Invalid user ID' });
+    return;
+  }
   const { rows } = await pool.query(
     'SELECT id, name, avatar_url, location, created_at FROM users WHERE id = $1',
     [req.params['id']]

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import { pool } from '../db/client.js';
 import { env } from '../config/env.js';
@@ -7,12 +8,21 @@ import type { AuthSignUpBody, AuthSignInBody } from '@myotherpair/types';
 
 const router = Router();
 
+// 5 attempts per 15 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts — try again in 15 minutes' },
+});
+
 const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
 // POST /auth/sign-up
-router.post('/sign-up', async (req: Request, res: Response) => {
+router.post('/sign-up', authLimiter, async (req: Request, res: Response) => {
   const { email, password, name } = req.body as AuthSignUpBody;
 
   if (!email || !password) {
@@ -27,7 +37,8 @@ router.post('/sign-up', async (req: Request, res: Response) => {
   });
 
   if (error) {
-    res.status(400).json({ error: error.message });
+    // Don't leak whether the email already exists
+    res.status(400).json({ error: 'Could not create account — check your details and try again' });
     return;
   }
 
@@ -43,7 +54,7 @@ router.post('/sign-up', async (req: Request, res: Response) => {
 });
 
 // POST /auth/sign-in
-router.post('/sign-in', async (req: Request, res: Response) => {
+router.post('/sign-in', authLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body as AuthSignInBody;
 
   if (!email || !password) {
@@ -57,7 +68,8 @@ router.post('/sign-in', async (req: Request, res: Response) => {
   });
 
   if (error) {
-    res.status(401).json({ error: error.message });
+    // Generic message — don't reveal whether email exists
+    res.status(401).json({ error: 'Invalid email or password' });
     return;
   }
 

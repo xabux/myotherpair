@@ -6,13 +6,12 @@ import type { CreateListingBody, UpdateListingBody } from '@myotherpair/types';
 
 const router = Router();
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // GET /listings — public, paginated
 router.get('/', async (req: Request, res: Response) => {
-  const page = Math.max(1, parseInt(String(req.query['page'] ?? '1'), 10));
-  const pageSize = Math.min(
-    100,
-    Math.max(1, parseInt(String(req.query['pageSize'] ?? '20'), 10))
-  );
+  const page     = Math.max(1, parseInt(String(req.query['page']     ?? '1'),  10) || 1);
+  const pageSize = Math.max(1, Math.min(100, parseInt(String(req.query['pageSize'] ?? '20'), 10) || 20));
   const offset = (page - 1) * pageSize;
 
   const { rows: countRows } = await pool.query(
@@ -32,6 +31,10 @@ router.get('/', async (req: Request, res: Response) => {
 
 // GET /listings/:id — public
 router.get('/:id', async (req: Request, res: Response) => {
+  if (!UUID_RE.test(String(req.params['id'] ?? ''))) {
+    res.status(400).json({ error: 'Invalid listing ID' });
+    return;
+  }
   const { rows } = await pool.query('SELECT * FROM listings WHERE id = $1', [
     req.params['id'],
   ]);
@@ -77,6 +80,10 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 
 // PATCH /listings/:id — authenticated, owner only
 router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
+  if (!UUID_RE.test(String(req.params['id'] ?? ''))) {
+    res.status(400).json({ error: 'Invalid listing ID' });
+    return;
+  }
   const { rows: existing } = await pool.query(
     'SELECT user_id FROM listings WHERE id = $1',
     [req.params['id']]
@@ -132,6 +139,10 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
 
 // DELETE /listings/:id — authenticated, owner only
 router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
+  if (!UUID_RE.test(String(req.params['id'] ?? ''))) {
+    res.status(400).json({ error: 'Invalid listing ID' });
+    return;
+  }
   const { rows } = await pool.query(
     'SELECT user_id FROM listings WHERE id = $1',
     [req.params['id']]

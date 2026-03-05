@@ -10,8 +10,13 @@ const app = express();
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? ['http://localhost:3000'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+}));
+app.use(express.json({ limit: '1mb' }));
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
