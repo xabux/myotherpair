@@ -3,20 +3,31 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ThemeToggle from '../components/ThemeToggle';
+import AuthLoader  from '../components/AuthLoader';
 import { supabase } from '../../lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email,     setEmail]     = useState('');
-  const [password,  setPassword]  = useState('');
-  const [showPass,  setShowPass]  = useState(false);
-  const [loading,   setLoading]   = useState(false);
-  const [authError, setAuthError] = useState('');
+  const [email,      setEmail]      = useState('');
+  const [password,   setPassword]   = useState('');
+  const [showPass,   setShowPass]   = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [authError,  setAuthError]  = useState('');
+  const [checking,   setChecking]   = useState(true);
+  const [redirectTo, setRedirectTo] = useState('/app');
 
-  // Redirect to /app if already logged in
+  // Read redirect param and check for existing session
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const r = params.get('redirect');
+    if (r && r.startsWith('/')) setRedirectTo(r);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace('/app');
+      if (session) {
+        router.replace(r && r.startsWith('/') ? r : '/app');
+      } else {
+        setChecking(false);
+      }
     });
   }, [router]);
 
@@ -27,18 +38,20 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) { setAuthError(error.message); return; }
-    router.push('/app');
+    router.replace(redirectTo);
   }
 
   async function handleGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${location.origin}/app` },
+      options: { redirectTo: `${location.origin}${redirectTo}` },
     });
   }
 
   const inputCls =
     'w-full bg-white/5 border border-white/10 text-white placeholder-white/25 text-sm px-4 py-3.5 rounded-2xl outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors';
+
+  if (checking) return <AuthLoader />;
 
   return (
     <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center px-4 sm:px-6 py-16">

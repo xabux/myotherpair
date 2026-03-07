@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import ThemeToggle from '../components/ThemeToggle';
+import AuthLoader  from '../components/AuthLoader';
 import { supabase } from '../../lib/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -344,6 +345,7 @@ function SidebarSteps({ step }: { step: number }) {
 export default function SignUpPage() {
   const router = useRouter();
 
+  const [checking,  setChecking]  = useState(true);
   const [step,      setStep]      = useState(1);
   const [direction, setDirection] = useState<'right'|'left'>('right');
   const [animKey,   setAnimKey]   = useState(0);
@@ -367,6 +369,17 @@ export default function SignUpPage() {
   const [resendSecs, setResendSecs] = useState(0);
   const otpInputs = useRef<(HTMLInputElement|null)[]>([]);
 
+  // Redirect already-logged-in users away from signup
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace('/app');
+      } else {
+        setChecking(false);
+      }
+    });
+  }, [router]);
+
   const startResendTimer = useCallback(() => {
     setResendSecs(30);
     const id = setInterval(() => {
@@ -376,7 +389,7 @@ export default function SignUpPage() {
 
   const chooseOtpMethod = async (method: 'email'|'phone') => {
     setOtpMethod(method);
-    setOtp(['','','','','','','','']);
+    setOtp(['','','','','','']);
     setOtpError(null);
     if (method === 'phone') {
       const fullPhone = form.countryCode + form.phone.replace(/\D/g, '');
@@ -462,7 +475,7 @@ export default function SignUpPage() {
     }
 
     setOtpSuccess(true);
-    setTimeout(() => router.push('/app'), 1200);
+    setTimeout(() => router.replace('/app'), 1200);
   };
 
   const submitOtp = () => verifyOtp(otp);
@@ -534,6 +547,8 @@ export default function SignUpPage() {
     `px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all cursor-pointer ${
       active ? 'border-brand-500 text-white' : 'border-white/10 bg-white/5 text-white/50 hover:border-white/30'
     }`;
+
+  if (checking) return <AuthLoader />;
 
   return (
     <div className="flex min-h-screen bg-dark-900">

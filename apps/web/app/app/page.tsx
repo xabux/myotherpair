@@ -1072,7 +1072,7 @@ function ProfileTab({ userId }: { userId?: string }) {
 
   async function handleSignOut() {
     await supabase.auth.signOut();
-    router.push('/');
+    router.replace('/');
   }
 
   const name      = profile.name || 'Alex Johnson';
@@ -1192,7 +1192,7 @@ export default function AppPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        router.replace('/login');
+        router.replace('/login?redirect=%2Fapp');
       } else {
         setUser(session.user);
         setUserEmail(session.user.email ?? '');
@@ -1200,9 +1200,13 @@ export default function AppPage() {
       setSessionChecked(true);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        router.replace('/login?expired=1');
+        if (event === 'SIGNED_OUT') {
+          router.replace('/');
+        } else {
+          router.replace('/login?redirect=%2Fapp');
+        }
       } else {
         setUser(session.user);
         setUserEmail(session.user.email ?? '');
