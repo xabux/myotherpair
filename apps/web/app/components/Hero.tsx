@@ -152,7 +152,7 @@ export default function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative min-h-screen flex items-center bg-dark-900 overflow-hidden px-6 pt-24 pb-16"
+      className="hero relative min-h-screen flex items-center bg-dark-900 overflow-hidden px-6 pt-24 pb-16"
     >
       {/* Background glow — z-0, behind falling shoes */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
@@ -166,7 +166,7 @@ export default function Hero() {
       <div className="relative z-10 max-w-6xl mx-auto w-full grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
 
         {/* ── Left copy ── */}
-        <div>
+        <div className="hero-content">
           <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-white/70 text-xs font-semibold px-4 py-2 rounded-full mb-8">
             <span
               className="w-1.5 h-1.5 rounded-full"
@@ -186,7 +186,7 @@ export default function Hero() {
             your complement — by brand, model, size, and foot side.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 mb-10">
+          <div className="hero-cta flex flex-col sm:flex-row gap-3 mb-10">
             <a
               href="/signup"
               className="inline-flex items-center justify-center gap-2 bg-tinder text-white text-sm font-bold px-8 py-4 rounded-full hover:opacity-90 active:scale-[.97] transition-all shadow-glow"
@@ -198,7 +198,7 @@ export default function Hero() {
             </a>
           </div>
 
-          <div className="flex items-center gap-6 flex-wrap">
+          <div className="hero-stats flex items-center gap-6 flex-wrap">
             {[
               { value: '300M+',  label: 'potential matches'  },
               { value: '$0',     label: 'to list your shoe'  },
@@ -214,26 +214,26 @@ export default function Hero() {
 
         {/* ── Right — phone mockup ── */}
         <div
-          className="relative flex items-center justify-center max-w-[300px] mx-auto lg:max-w-none w-full"
-          style={{ height: 'clamp(500px, 80vw, 640px)' }}
+          className="hero-visual relative flex items-center justify-center"
+          style={{ height: '640px' }}
         >
-          {/* Floating chip 1 — desktop only */}
-          <div className="absolute left-0 top-16 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card hidden lg:flex items-center gap-2 animate-float-1 whitespace-nowrap">
+          {/* Floating chip 1 */}
+          <div className="float-chip absolute left-0 top-16 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card flex items-center gap-2 animate-float-1 whitespace-nowrap">
             <span className="text-green-400">✓</span> Match confirmed!
           </div>
 
-          {/* Floating chip 2 — desktop only */}
-          <div className="absolute right-0 top-40 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card hidden lg:flex items-center gap-2 animate-float-2 whitespace-nowrap">
+          {/* Floating chip 2 */}
+          <div className="float-chip absolute right-0 top-40 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card flex items-center gap-2 animate-float-2 whitespace-nowrap">
             📍 New listing nearby
           </div>
 
-          {/* Floating chip 3 — desktop only */}
-          <div className="absolute left-2 bottom-24 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card hidden lg:flex items-center gap-2 animate-float-3 whitespace-nowrap">
+          {/* Floating chip 3 */}
+          <div className="float-chip absolute left-2 bottom-24 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card flex items-center gap-2 animate-float-3 whitespace-nowrap">
             📏 0.5 mi away
           </div>
 
           {/* Phone shell */}
-          <div className="relative flex-shrink-0" style={{ width: '280px', height: '590px' }}>
+          <div className="phone relative flex-shrink-0" style={{ width: '280px', height: '590px' }}>
 
             {/* Side buttons */}
             <div className="absolute -left-[5px] top-24  w-[5px] h-7  bg-dark-600 rounded-l-sm" />
@@ -251,7 +251,7 @@ export default function Hero() {
             >
               {/* Screen glow */}
               <div
-                className="absolute inset-0 pointer-events-none z-0 rounded-[42px]"
+                className="phone-glow absolute inset-0 pointer-events-none z-0 rounded-[42px]"
                 style={{ background: 'radial-gradient(ellipse at 50% 20%, rgba(253,38,122,0.18) 0%, transparent 60%)' }}
                 aria-hidden="true"
               />

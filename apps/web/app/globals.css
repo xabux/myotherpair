@@ -212,3 +212,31 @@ html, body { overflow-x: hidden; }
   .cursor, .cursor-ring { display: none !important; }
   body { cursor: auto !important; }
 }
+
+/* ─── Hero: hide phone on mobile/tablet, center content ───────────────────── */
+
+@media (max-width: 1024px) {
+  .hero-visual,
+  .phone,
+  .float-chip,
+  .phone-glow {
+    display: none !important;
+  }
+
+  .hero-content {
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .hero-cta {
+    justify-content: center;
+  }
+
+  .hero-stats {
+    justify-content: center;
+  }
+
+  .hero {
+    justify-content: center;
+  }
+}
