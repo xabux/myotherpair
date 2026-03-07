@@ -79,39 +79,6 @@ function fmt(n: number) { return String(n); }
 
 const BRANDS = ['Nike','Adidas','Jordan','New Balance','Vans','Converse','Timberland','Puma','Reebok','Other'];
 
-// US, UK, and all 27 EU member states only
-const PHONE_COUNTRIES = [
-  { code: 'US', dial: '+1',   name: 'United States',  flag: '🇺🇸' },
-  { code: 'GB', dial: '+44',  name: 'United Kingdom', flag: '🇬🇧' },
-  { code: 'AT', dial: '+43',  name: 'Austria',        flag: '🇦🇹' },
-  { code: 'BE', dial: '+32',  name: 'Belgium',        flag: '🇧🇪' },
-  { code: 'BG', dial: '+359', name: 'Bulgaria',       flag: '🇧🇬' },
-  { code: 'HR', dial: '+385', name: 'Croatia',        flag: '🇭🇷' },
-  { code: 'CY', dial: '+357', name: 'Cyprus',         flag: '🇨🇾' },
-  { code: 'CZ', dial: '+420', name: 'Czech Republic', flag: '🇨🇿' },
-  { code: 'DK', dial: '+45',  name: 'Denmark',        flag: '🇩🇰' },
-  { code: 'EE', dial: '+372', name: 'Estonia',        flag: '🇪🇪' },
-  { code: 'FI', dial: '+358', name: 'Finland',        flag: '🇫🇮' },
-  { code: 'FR', dial: '+33',  name: 'France',         flag: '🇫🇷' },
-  { code: 'DE', dial: '+49',  name: 'Germany',        flag: '🇩🇪' },
-  { code: 'GR', dial: '+30',  name: 'Greece',         flag: '🇬🇷' },
-  { code: 'HU', dial: '+36',  name: 'Hungary',        flag: '🇭🇺' },
-  { code: 'IE', dial: '+353', name: 'Ireland',        flag: '🇮🇪' },
-  { code: 'IT', dial: '+39',  name: 'Italy',          flag: '🇮🇹' },
-  { code: 'LV', dial: '+371', name: 'Latvia',         flag: '🇱🇻' },
-  { code: 'LT', dial: '+370', name: 'Lithuania',      flag: '🇱🇹' },
-  { code: 'LU', dial: '+352', name: 'Luxembourg',     flag: '🇱🇺' },
-  { code: 'MT', dial: '+356', name: 'Malta',          flag: '🇲🇹' },
-  { code: 'NL', dial: '+31',  name: 'Netherlands',    flag: '🇳🇱' },
-  { code: 'PL', dial: '+48',  name: 'Poland',         flag: '🇵🇱' },
-  { code: 'PT', dial: '+351', name: 'Portugal',       flag: '🇵🇹' },
-  { code: 'RO', dial: '+40',  name: 'Romania',        flag: '🇷🇴' },
-  { code: 'SK', dial: '+421', name: 'Slovakia',       flag: '🇸🇰' },
-  { code: 'SI', dial: '+386', name: 'Slovenia',       flag: '🇸🇮' },
-  { code: 'ES', dial: '+34',  name: 'Spain',          flag: '🇪🇸' },
-  { code: 'SE', dial: '+46',  name: 'Sweden',         flag: '🇸🇪' },
-];
-
 const COUNTRIES = [
   'Australia','Brazil','Canada','China','Denmark','France','Germany','India','Ireland','Italy',
   'Japan','Mexico','Netherlands','New Zealand','Nigeria','Norway','South Africa','South Korea',
@@ -122,19 +89,19 @@ const COUNTRIES = [
 
 interface FormState {
   firstName:string; lastName:string; email:string; password:string; confirm:string;
-  countryCode:string; phone:string; dob:string;
-  street1:string; street2:string; city:string; state:string; postal:string; country:string;
+  city:string; country:string;
   sizeSystem:SizeSystem; gender:Gender;
   leftSize:number|null; rightSize:number|null; sameSize:boolean;
+  amputee:boolean; amputeeFoot:'Left'|'Right';
   brands:string[];
 }
 type Errors = Partial<Record<keyof FormState, string>>;
 
 const INIT: FormState = {
   firstName:'',lastName:'',email:'',password:'',confirm:'',
-  countryCode:'+1',phone:'',dob:'',
-  street1:'',street2:'',city:'',state:'',postal:'',country:'',
-  sizeSystem:'US',gender:'mens',leftSize:null,rightSize:null,sameSize:false,brands:[],
+  city:'',country:'',
+  sizeSystem:'US',gender:'mens',leftSize:null,rightSize:null,sameSize:false,
+  amputee:false,amputeeFoot:'Left',brands:[],
 };
 
 function validate(step: number, f: FormState): Errors {
@@ -145,20 +112,18 @@ function validate(step: number, f: FormState): Errors {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) e.email = 'Valid email required';
     if (f.password.length < 8)    e.password = 'Min. 8 characters';
     if (f.confirm !== f.password) e.confirm  = "Passwords don't match";
-    if (!f.phone.trim()) e.phone = 'Required';
-    if (!f.dob)          e.dob   = 'Required';
+    if (!f.city.trim()) e.city    = 'Required';
+    if (!f.country)     e.country = 'Required';
   }
   if (step === 2) {
-    if (!f.street1.trim()) e.street1 = 'Required';
-    if (!f.city.trim())    e.city    = 'Required';
-    if (!f.state.trim())   e.state   = 'Required';
-    if (!f.postal.trim())  e.postal  = 'Required';
-    if (!f.country)        e.country = 'Required';
-  }
-  if (step === 3) {
-    if (f.leftSize === null)  e.leftSize  = 'Select a size';
-    if (f.rightSize === null) e.rightSize = 'Select a size';
-    if (!f.brands.length)     e.brands    = 'Select at least one';
+    if (f.amputee) {
+      if (f.amputeeFoot === 'Left'  && f.leftSize  === null) e.leftSize  = 'Select a size';
+      if (f.amputeeFoot === 'Right' && f.rightSize === null) e.rightSize = 'Select a size';
+    } else {
+      if (f.leftSize === null)  e.leftSize  = 'Select a size';
+      if (f.rightSize === null) e.rightSize = 'Select a size';
+    }
+    if (!f.brands.length) e.brands = 'Select at least one';
   }
   return e;
 }
@@ -186,61 +151,6 @@ function EyeIcon({ open }: { open: boolean }) {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
     </svg>
-  );
-}
-
-// ─── Phone country dropdown ───────────────────────────────────────────────────
-
-function PhoneCountrySelect({ value, onChange }: { value: string; onChange: (dial: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handle = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, []);
-
-  const selected = PHONE_COUNTRIES.find(c => c.dial === value) ?? PHONE_COUNTRIES[0];
-
-  return (
-    <div ref={ref} className="relative flex-shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-2 bg-white/5 border border-white/10 text-white text-sm px-3 py-3.5 rounded-2xl hover:bg-white/10 transition-colors w-32"
-      >
-        <img src={`https://flagcdn.com/w20/${selected.code.toLowerCase()}.png`} alt={selected.name} className="w-5 h-auto rounded-sm flex-shrink-0" />
-        <span className="font-bold text-xs tracking-wide">{selected.code}</span>
-        <svg className={`w-3 h-3 text-white/30 ml-auto flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 mt-2 w-64 bg-dark-800 border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-50">
-          <div className="max-h-64 overflow-y-auto">
-            {PHONE_COUNTRIES.map(c => (
-              <button
-                key={c.dial}
-                type="button"
-                onClick={() => { onChange(c.dial); setOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors text-left ${
-                  c.dial === value ? 'bg-white/5' : ''
-                }`}
-              >
-                <img src={`https://flagcdn.com/w20/${c.code.toLowerCase()}.png`} alt={c.name} className="w-5 h-auto rounded-sm flex-shrink-0" />
-                <span className="font-bold text-xs tracking-wide text-white w-7">{c.code}</span>
-                <span className="text-white/50 text-xs truncate">{c.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -291,9 +201,9 @@ function ConvBadge({ row }: { row: SizeConvRow }) {
 
 // ─── Sidebar step list ────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 4;
-const STEP_LABELS  = ['You', 'Location', 'Your feet', 'Photo'];
-const STEP_SUBLABELS = ['Personal details', 'Where you live', 'Shoe sizes', 'Optional'];
+const TOTAL_STEPS = 3;
+const STEP_LABELS  = ['You', 'Your feet', 'Photo'];
+const STEP_SUBLABELS = ['Personal details & location', 'Shoe sizes', 'Optional'];
 
 function SidebarSteps({ step }: { step: number }) {
   return (
@@ -362,7 +272,7 @@ export default function SignUpPage() {
 
   // ── OTP state ──────────────────────────────────────────────────────────────
   const [otpMode,    setOtpMode]    = useState(false);
-  const [otpMethod,  setOtpMethod]  = useState<'email'|'phone'|null>(null);
+  const [otpMethod,  setOtpMethod]  = useState<'email'|null>(null);
   const [otp,        setOtp]        = useState(['','','','','','']);
   const [otpError,   setOtpError]   = useState<string | null>(null);
   const [otpSuccess, setOtpSuccess] = useState(false);
@@ -387,14 +297,10 @@ export default function SignUpPage() {
     }, 1000);
   }, []);
 
-  const chooseOtpMethod = async (method: 'email'|'phone') => {
-    setOtpMethod(method);
+  const chooseOtpMethod = () => {
+    setOtpMethod('email');
     setOtp(['','','','','','']);
     setOtpError(null);
-    if (method === 'phone') {
-      const fullPhone = form.countryCode + form.phone.replace(/\D/g, '');
-      await supabase.auth.signInWithOtp({ phone: fullPhone });
-    }
     startResendTimer();
     setTimeout(() => otpInputs.current[0]?.focus(), 100);
   };
@@ -432,13 +338,7 @@ export default function SignUpPage() {
     const code = digits.join('');
     if (code.length < 6) return;
 
-    let result;
-    if (otpMethod === 'phone') {
-      const fullPhone = form.countryCode + form.phone.replace(/\D/g, '');
-      result = await supabase.auth.verifyOtp({ phone: fullPhone, token: code, type: 'sms' });
-    } else {
-      result = await supabase.auth.verifyOtp({ email: form.email, token: code, type: 'signup' });
-    }
+    const result = await supabase.auth.verifyOtp({ email: form.email, token: code, type: 'signup' });
 
     if (result.error) {
       setOtpError('Wrong code — try again');
@@ -450,7 +350,7 @@ export default function SignUpPage() {
     const userId = result.data.user?.id;
     if (userId) {
       // Insert user row
-      const location = [form.city, form.state, form.country].filter(Boolean).join(', ');
+      const location = [form.city, form.country].filter(Boolean).join(', ');
       await supabase.from('users').insert({
         id:             userId,
         name:           [form.firstName, form.lastName].filter(Boolean).join(' '),
@@ -480,6 +380,13 @@ export default function SignUpPage() {
 
   const submitOtp = () => verifyOtp(otp);
 
+  const handleOAuth = async (provider: 'google' | 'apple') => {
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${location.origin}/auth/callback` },
+    });
+  };
+
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm(f => ({ ...f, [k]: v }));
 
@@ -505,6 +412,7 @@ export default function SignUpPage() {
     });
     setLoading(false);
     if (error) { setAuthError(error.message); return; }
+    chooseOtpMethod();
     setOtpMode(true);
   };
 
@@ -633,46 +541,15 @@ export default function SignUpPage() {
                       ))}
                     </div>
                   </>
-                ) : otpMethod === null ? (
-                  /* Method choice */
-                  <>
-                    <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-8 text-3xl">
-                      ✉️
-                    </div>
-                    <h2 className="text-3xl font-extrabold text-white mb-3">Verify your account</h2>
-                    <p className="text-white/40 mb-10 leading-relaxed max-w-xs">
-                      We'll send a 6-digit code to confirm it's really you.
-                    </p>
-                    <div className="flex flex-col gap-3 w-full max-w-xs">
-                      <button type="button" onClick={() => chooseOtpMethod('email')}
-                        className="flex items-center gap-4 px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-brand-500/50 rounded-2xl transition-all text-left group">
-                        <span className="text-2xl">📧</span>
-                        <div>
-                          <p className="text-sm font-semibold text-white group-hover:text-brand-400 transition-colors">Send to email</p>
-                          <p className="text-xs text-white/35 mt-0.5">{form.email || 'your@email.com'}</p>
-                        </div>
-                      </button>
-                      <button type="button" onClick={() => chooseOtpMethod('phone')}
-                        className="flex items-center gap-4 px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-brand-500/50 rounded-2xl transition-all text-left group">
-                        <span className="text-2xl">📱</span>
-                        <div>
-                          <p className="text-sm font-semibold text-white group-hover:text-brand-400 transition-colors">Send to phone</p>
-                          <p className="text-xs text-white/35 mt-0.5">{form.countryCode} {form.phone || '555 123 4567'}</p>
-                        </div>
-                      </button>
-                    </div>
-                  </>
-                ) : (
+                ) : otpMethod === null ? null : (
                   /* OTP input */
                   <>
                     <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-8 text-3xl">
-                      {otpMethod === 'email' ? '📧' : '📱'}
+                      📧
                     </div>
                     <h2 className="text-3xl font-extrabold text-white mb-3">Enter code</h2>
                     <p className="text-white/40 mb-8 leading-relaxed max-w-xs text-sm">
-                      {otpMethod === 'email'
-                        ? `Sent to ${form.email || 'your email'}`
-                        : `Sent to ${form.countryCode} ${form.phone}`}
+                      Sent to {form.email || 'your email'}
                     </p>
 
                     {/* 6-digit boxes */}
@@ -730,10 +607,6 @@ export default function SignUpPage() {
                       )}
                     </div>
 
-                    <button type="button" onClick={() => setOtpMethod(null)}
-                      className="mt-4 text-xs text-white/20 hover:text-white/40 transition-colors">
-                      ← Change method
-                    </button>
                   </>
                 )}
               </div>
@@ -766,6 +639,36 @@ export default function SignUpPage() {
                     <div>
                       <h1 className="text-3xl font-extrabold text-white mb-2">About you</h1>
                       <p className="text-base text-white/40">Let's start with the basics.</p>
+                    </div>
+
+                    {/* Social sign-up */}
+                    <div className="flex flex-col gap-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        {(['Google', 'Apple'] as const).map(provider => (
+                          <button key={provider} type="button"
+                            onClick={() => handleOAuth(provider.toLowerCase() as 'google' | 'apple')}
+                            className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-sm font-medium py-3 rounded-2xl transition-colors">
+                            {provider === 'Google' ? (
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11" />
+                              </svg>
+                            )}
+                            {provider}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 h-px bg-white/8" />
+                        <span className="text-xs text-white/25">or with email</span>
+                        <div className="flex-1 h-px bg-white/8" />
+                      </div>
                     </div>
 
                     <div className="flex flex-col gap-6">
@@ -823,53 +726,6 @@ export default function SignUpPage() {
                         </div>
                       </div>
 
-                      <div>
-                        <label htmlFor="phone" className={lbl}>Phone number</label>
-                        <div className="flex gap-3">
-                          <PhoneCountrySelect value={form.countryCode} onChange={dial => set('countryCode', dial)} />
-                          <input id="phone" type="tel" value={form.phone}
-                            onChange={e => set('phone', e.target.value)}
-                            placeholder="555 123 4567" className={field(!!errors.phone)} />
-                        </div>
-                        {errors.phone && <p className={errMsg}>{errors.phone}</p>}
-                      </div>
-
-                      <div className="max-w-xs">
-                        <label htmlFor="dob" className={lbl}>Date of birth</label>
-                        <input id="dob" type="date" value={form.dob}
-                          onChange={e => set('dob', e.target.value)} className={field(!!errors.dob)} />
-                        {errors.dob && <p className={errMsg}>{errors.dob}</p>}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* ════════ STEP 2 — Location ════════ */}
-                {step === 2 && (
-                  <>
-                    <div>
-                      <h1 className="text-3xl font-extrabold text-white mb-2">Where are you?</h1>
-                      <p className="text-base text-white/40">Helps us surface nearby matches first.</p>
-                    </div>
-
-                    <div className="flex flex-col gap-6">
-                      <div>
-                        <label htmlFor="street1" className={lbl}>Street address</label>
-                        <input id="street1" type="text" value={form.street1}
-                          onChange={e => set('street1', e.target.value)}
-                          placeholder="123 Main Street" className={field(!!errors.street1)} />
-                        {errors.street1 && <p className={errMsg}>{errors.street1}</p>}
-                      </div>
-
-                      <div>
-                        <label htmlFor="street2" className={lbl}>
-                          Apt, suite, unit <span className="font-normal text-white/25">(optional)</span>
-                        </label>
-                        <input id="street2" type="text" value={form.street2}
-                          onChange={e => set('street2', e.target.value)}
-                          placeholder="Apt 4B" className={field()} />
-                      </div>
-
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="city" className={lbl}>City</label>
@@ -877,23 +733,6 @@ export default function SignUpPage() {
                             onChange={e => set('city', e.target.value)}
                             placeholder="New York" className={field(!!errors.city)} />
                           {errors.city && <p className={errMsg}>{errors.city}</p>}
-                        </div>
-                        <div>
-                          <label htmlFor="state" className={lbl}>State / Province</label>
-                          <input id="state" type="text" value={form.state}
-                            onChange={e => set('state', e.target.value)}
-                            placeholder="NY" className={field(!!errors.state)} />
-                          {errors.state && <p className={errMsg}>{errors.state}</p>}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="postal" className={lbl}>Postal / ZIP</label>
-                          <input id="postal" type="text" value={form.postal}
-                            onChange={e => set('postal', e.target.value)}
-                            placeholder="10001" className={field(!!errors.postal)} />
-                          {errors.postal && <p className={errMsg}>{errors.postal}</p>}
                         </div>
                         <div>
                           <label htmlFor="country" className={lbl}>Country</label>
@@ -912,12 +751,13 @@ export default function SignUpPage() {
                           {errors.country && <p className={errMsg}>{errors.country}</p>}
                         </div>
                       </div>
+
                     </div>
                   </>
                 )}
 
-                {/* ════════ STEP 3 — Your feet ════════ */}
-                {step === 3 && (
+                {/* ════════ STEP 2 — Your feet ════════ */}
+                {step === 2 && (
                   <>
                     <div>
                       <h1 className="text-3xl font-extrabold text-white mb-2">Your feet</h1>
@@ -947,47 +787,111 @@ export default function SignUpPage() {
                         </div>
                       </div>
 
-                      {/* Same size */}
-                      <label className="flex items-center gap-3 cursor-pointer -mt-2">
-                        <div className="relative flex-shrink-0">
-                          <input type="checkbox" checked={form.sameSize} className="sr-only"
-                            onChange={e => setForm(f => ({
-                              ...f, sameSize: e.target.checked,
-                              rightSize: e.target.checked ? f.leftSize : f.rightSize,
-                            }))} />
-                          <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-all ${
-                            form.sameSize ? 'border-transparent' : 'bg-white/5 border-white/20'
-                          }`} style={form.sameSize ? { background:'linear-gradient(to right,#fd267a,#ff6036)' } : {}}>
-                            {form.sameSize && (
-                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
+                      {/* Toggles — amputee + same size */}
+                      <div className="flex flex-col gap-3 -mt-2">
+                        {/* Amputee toggle */}
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <div className="relative flex-shrink-0">
+                            <input type="checkbox" checked={form.amputee} className="sr-only"
+                              onChange={e => setForm(f => ({
+                                ...f, amputee: e.target.checked,
+                                sameSize: false,
+                                leftSize: null, rightSize: null,
+                              }))} />
+                            <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-all ${
+                              form.amputee ? 'border-transparent' : 'bg-white/5 border-white/20'
+                            }`} style={form.amputee ? { background:'linear-gradient(to right,#fd267a,#ff6036)' } : {}}>
+                              {form.amputee && (
+                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                          <span className="text-sm text-white/50">I'm an amputee (one foot)</span>
+                        </label>
+
+                        {/* Same size — only when not amputee */}
+                        {!form.amputee && (
+                          <label className="flex items-center gap-3 cursor-pointer">
+                            <div className="relative flex-shrink-0">
+                              <input type="checkbox" checked={form.sameSize} className="sr-only"
+                                onChange={e => setForm(f => ({
+                                  ...f, sameSize: e.target.checked,
+                                  rightSize: e.target.checked ? f.leftSize : f.rightSize,
+                                }))} />
+                              <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-all ${
+                                form.sameSize ? 'border-transparent' : 'bg-white/5 border-white/20'
+                              }`} style={form.sameSize ? { background:'linear-gradient(to right,#fd267a,#ff6036)' } : {}}>
+                                {form.sameSize && (
+                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-sm text-white/50">My feet are the same size</span>
+                          </label>
+                        )}
+                      </div>
+
+                      {form.amputee ? (
+                        /* ── Amputee: which foot + single grid ── */
+                        <div className="flex flex-col gap-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm text-white/50">Which foot?</span>
+                            <div className="flex bg-white/5 rounded-2xl p-1 gap-1">
+                              {(['Left', 'Right'] as const).map(foot => (
+                                <button key={foot} type="button"
+                                  onClick={() => setForm(f => ({ ...f, amputeeFoot: foot, leftSize: null, rightSize: null }))}
+                                  className={segBtn(form.amputeeFoot === foot)}
+                                  style={form.amputeeFoot === foot ? { background:'linear-gradient(to right,#fd267a,#ff6036)' } : {}}>
+                                  {foot}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-3">
+                            <p className="text-sm font-semibold text-white/60">
+                              {form.amputeeFoot === 'Left' ? '🦶' : <span style={{ transform:'scaleX(-1)', display:'inline-block' }}>🦶</span>}
+                              {' '}{form.amputeeFoot} foot size
+                            </p>
+                            <SizeGrid
+                              sizes={sizeRange}
+                              selected={form.amputeeFoot === 'Left' ? form.leftSize : form.rightSize}
+                              onSelect={size => setForm(f => ({
+                                ...f,
+                                leftSize:  f.amputeeFoot === 'Left'  ? size : null,
+                                rightSize: f.amputeeFoot === 'Right' ? size : null,
+                              }))}
+                              error={form.amputeeFoot === 'Left' ? errors.leftSize : errors.rightSize}
+                            />
+                            {form.amputeeFoot === 'Left'  && leftConv  && <ConvBadge row={leftConv} />}
+                            {form.amputeeFoot === 'Right' && rightConv && <ConvBadge row={rightConv} />}
                           </div>
                         </div>
-                        <span className="text-sm text-white/50">My feet are the same size</span>
-                      </label>
-
-                      {/* Feet — side by side */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="flex flex-col gap-3">
-                          <p className="text-sm font-semibold text-white/60">🦶 Left foot</p>
-                          <SizeGrid sizes={sizeRange} selected={form.leftSize}
-                            onSelect={size => setForm(f => ({ ...f, leftSize: size, rightSize: f.sameSize ? size : f.rightSize }))}
-                            error={errors.leftSize} />
-                          {leftConv && <ConvBadge row={leftConv} />}
+                      ) : (
+                        /* ── Normal: two feet side by side ── */
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <div className="flex flex-col gap-3">
+                            <p className="text-sm font-semibold text-white/60">🦶 Left foot</p>
+                            <SizeGrid sizes={sizeRange} selected={form.leftSize}
+                              onSelect={size => setForm(f => ({ ...f, leftSize: size, rightSize: f.sameSize ? size : f.rightSize }))}
+                              error={errors.leftSize} />
+                            {leftConv && <ConvBadge row={leftConv} />}
+                          </div>
+                          <div className="flex flex-col gap-3" style={{ opacity: form.sameSize ? 0.4 : 1, pointerEvents: form.sameSize ? 'none' : 'auto' }}>
+                            <p className="text-sm font-semibold text-white/60">
+                              <span style={{ transform:'scaleX(-1)', display:'inline-block', marginRight:'4px' }}>🦶</span>
+                              Right foot
+                            </p>
+                            <SizeGrid sizes={sizeRange} selected={form.rightSize}
+                              onSelect={size => set('rightSize', size)}
+                              error={errors.rightSize} />
+                            {rightConv && <ConvBadge row={rightConv} />}
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-3" style={{ opacity: form.sameSize ? 0.4 : 1, pointerEvents: form.sameSize ? 'none' : 'auto' }}>
-                          <p className="text-sm font-semibold text-white/60">
-                            <span style={{ transform:'scaleX(-1)', display:'inline-block', marginRight:'4px' }}>🦶</span>
-                            Right foot
-                          </p>
-                          <SizeGrid sizes={sizeRange} selected={form.rightSize}
-                            onSelect={size => set('rightSize', size)}
-                            error={errors.rightSize} />
-                          {rightConv && <ConvBadge row={rightConv} />}
-                        </div>
-                      </div>
+                      )}
 
                       {/* Brands */}
                       <div>
@@ -1011,8 +915,8 @@ export default function SignUpPage() {
                   </>
                 )}
 
-                {/* ════════ STEP 4 — Photo ════════ */}
-                {step === 4 && (
+                {/* ════════ STEP 3 — Photo ════════ */}
+                {step === 3 && (
                   <>
                     <div>
                       <h1 className="text-3xl font-extrabold text-white mb-2">Profile photo</h1>

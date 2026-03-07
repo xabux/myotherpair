@@ -41,10 +41,10 @@ export default function LoginPage() {
     router.replace(redirectTo);
   }
 
-  async function handleGoogle() {
+  async function handleOAuth(provider: 'google' | 'apple') {
     await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${location.origin}${redirectTo}` },
+      provider,
+      options: { redirectTo: `${location.origin}/auth/callback` },
     });
   }
 
@@ -76,7 +76,7 @@ export default function LoginPage() {
         <div className="grid grid-cols-2 gap-3 mb-6">
           {['Google', 'Apple'].map(provider => (
             <button key={provider} type="button"
-              onClick={provider === 'Google' ? handleGoogle : undefined}
+              onClick={() => handleOAuth(provider.toLowerCase() as 'google' | 'apple')}
               className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-sm font-medium py-3 rounded-2xl transition-colors"
             >
               {provider === 'Google' ? (
