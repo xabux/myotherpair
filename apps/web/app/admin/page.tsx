@@ -598,13 +598,17 @@ export default function AdminPage() {
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace('/'); return; }
+      if (!session) { router.replace('/login'); return; }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('admins')
         .select('email')
         .eq('email', session.user.email ?? '')
         .single();
+
+      // DEBUG — remove after confirming access works
+      console.log('[Admin] session email:', session.user.email);
+      console.log('[Admin] admins row:', data, '| error:', error?.message);
 
       if (!data) { router.replace('/'); return; }
 
