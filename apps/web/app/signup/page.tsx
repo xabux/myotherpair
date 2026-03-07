@@ -75,6 +75,23 @@ function remapSize(v: number | null, from: SizeSystem, to: SizeSystem, g: Gender
 
 function fmt(n: number) { return String(n); }
 
+// ─── Password strength ────────────────────────────────────────────────────────
+
+const PW_RULES = [
+  { label: 'At least 8 characters',       test: (p: string) => p.length >= 8 },
+  { label: 'One uppercase letter (A–Z)',   test: (p: string) => /[A-Z]/.test(p) },
+  { label: 'One lowercase letter (a–z)',   test: (p: string) => /[a-z]/.test(p) },
+  { label: 'One number (0–9)',             test: (p: string) => /[0-9]/.test(p) },
+  { label: 'One special character (!@#…)', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+];
+
+function passwordScore(p: string): number {
+  return PW_RULES.filter(r => r.test(p)).length;
+}
+
+const STRENGTH_LABELS = ['', 'Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+const STRENGTH_COLORS = ['', '#ef4444', '#ef4444', '#f97316', '#eab308', '#22c55e'];
+
 // ─── Static data ──────────────────────────────────────────────────────────────
 
 const BRANDS = ['Nike','Adidas','Jordan','New Balance','Vans','Converse','Timberland','Puma','Reebok','Other'];
@@ -110,8 +127,8 @@ function validate(step: number, f: FormState): Errors {
     if (!f.firstName.trim())  e.firstName = 'Required';
     if (!f.lastName.trim())   e.lastName  = 'Required';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) e.email = 'Valid email required';
-    if (f.password.length < 8)    e.password = 'Min. 8 characters';
-    if (f.confirm !== f.password) e.confirm  = "Passwords don't match";
+    if (passwordScore(f.password) < 5) e.password = 'Password does not meet all requirements';
+    if (f.confirm !== f.password)      e.confirm  = "Passwords don't match";
     if (!f.city.trim()) e.city    = 'Required';
     if (!f.country)     e.country = 'Required';
   }
@@ -686,20 +703,62 @@ export default function SignUpPage() {
                         {errors.email && <p className={errMsg}>{errors.email}</p>}
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-4">
+                        {/* Password */}
                         <div>
                           <label htmlFor="password" className={lbl}>Password</label>
                           <div className="relative">
                             <input id="password" type={showPass ? 'text' : 'password'} value={form.password}
-                              onChange={e => set('password', e.target.value)} placeholder="Min. 8 characters"
+                              onChange={e => set('password', e.target.value)} placeholder="Create a strong password"
                               className={field(!!errors.password) + ' pr-11'} />
                             <button type="button" onClick={() => setShowPass(v => !v)}
                               className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors" aria-label="Toggle password">
                               <EyeIcon open={showPass} />
                             </button>
                           </div>
+
+                          {/* Strength bar */}
+                          {form.password.length > 0 && (() => {
+                            const score = passwordScore(form.password);
+                            const color = STRENGTH_COLORS[score];
+                            return (
+                              <div className="mt-2.5">
+                                <div className="flex gap-1 mb-1.5">
+                                  {[1,2,3,4,5].map(i => (
+                                    <div key={i} className="flex-1 h-1 rounded-full transition-all duration-300"
+                                      style={{ background: i <= score ? color : 'rgba(255,255,255,0.08)' }} />
+                                  ))}
+                                </div>
+                                <p className="text-xs font-semibold transition-colors" style={{ color }}>{STRENGTH_LABELS[score]}</p>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Checklist */}
+                          {form.password.length > 0 && (
+                            <ul className="mt-2.5 flex flex-col gap-1">
+                              {PW_RULES.map(r => {
+                                const ok = r.test(form.password);
+                                return (
+                                  <li key={r.label} className={`flex items-center gap-2 text-xs transition-colors ${ok ? 'text-white/50' : 'text-white/25'}`}>
+                                    <span className={`flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center transition-all ${ok ? 'bg-green-500/20' : 'bg-white/5'}`}>
+                                      {ok && (
+                                        <svg className="w-2 h-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      )}
+                                    </span>
+                                    {r.label}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+
                           {errors.password && <p className={errMsg}>{errors.password}</p>}
                         </div>
+
+                        {/* Confirm */}
                         <div>
                           <label htmlFor="confirm" className={lbl}>Confirm password</label>
                           <div className="relative">
