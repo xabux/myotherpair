@@ -45,54 +45,6 @@ interface Message {
   time: string;
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const MOCK_SHOES: Shoe[] = [
-  { id: '1', brand: 'Nike',        model: 'Air Force 1',        size: 'US 9',    foot: 'Left',   condition: 'Like New', price: '$45', user: 'Jordan M.', location: 'Chicago, IL',    color: 'from-blue-600 to-blue-400'     },
-  { id: '2', brand: 'Adidas',      model: 'Stan Smith',         size: 'US 10.5', foot: 'Right',  condition: 'Good',     price: '$30', user: 'Sam T.',    location: 'London, UK',      color: 'from-green-600 to-emerald-400' },
-  { id: '3', brand: 'Jordan',      model: 'Air Jordan 1 Retro', size: 'US 8',    foot: 'Left',   condition: 'New',      price: '$90', user: 'Maria S.',  location: 'New York, NY',    color: 'from-red-600 to-rose-400'      },
-  { id: '4', brand: 'New Balance', model: '990v5',              size: 'US 11',   foot: 'Right',  condition: 'Good',     price: '$55', user: 'Alex K.',   location: 'Boston, MA',      color: 'from-gray-600 to-slate-400'    },
-  { id: '5', brand: 'Vans',        model: 'Old Skool',          size: 'US 9.5',  foot: 'Left',   condition: 'Like New', price: '$35', user: 'Chris P.',  location: 'LA, CA',          color: 'from-zinc-700 to-zinc-500'     },
-  { id: '6', brand: 'Converse',    model: 'Chuck Taylor 70',    size: 'US 8.5',  foot: 'Right',  condition: 'Fair',     price: '$20', user: 'Dana L.',   location: 'Seattle, WA',     color: 'from-sky-600 to-cyan-400'      },
-  { id: '7', brand: 'Puma',        model: 'Suede Classic',      size: 'US 10',   foot: 'Left',   condition: 'Good',     price: '$28', user: 'Robin W.',  location: 'Austin, TX',      color: 'from-orange-600 to-amber-400'  },
-  { id: '8', brand: 'Reebok',      model: 'Club C 85',          size: 'US 7',    foot: 'Right',  condition: 'Like New', price: '$40', user: 'Taylor B.', location: 'Miami, FL',       color: 'from-purple-600 to-violet-400' },
-];
-
-const MOCK_MATCHES: Match[] = [
-  { id: '1', brand: 'Nike',   model: 'Air Max 90',   size: 'US 9',   foot: 'Right', user: 'Jamie R.',  avatar: 'JR', lastMsg: 'Hey! Is it still available?',  time: '2m' },
-  { id: '2', brand: 'Adidas', model: 'Ultraboost',   size: 'US 8',   foot: 'Left',  user: 'Casey L.',  avatar: 'CL', lastMsg: 'Perfect condition. Let me know!', time: '1h' },
-  { id: '3', brand: 'Jordan', model: 'Air Jordan 4', size: 'US 10',  foot: 'Right', user: 'Morgan P.', avatar: 'MP', lastMsg: 'Interested in a trade?',        time: '3h' },
-  { id: '4', brand: 'NB',     model: '574 Core',     size: 'US 11',  foot: 'Left',  user: 'Drew K.',   avatar: 'DK', lastMsg: 'Can you ship internationally?', time: 'Yesterday' },
-  { id: '5', brand: 'Vans',   model: 'Era',          size: 'US 9',   foot: 'Right', user: 'Sage M.',   avatar: 'SM', lastMsg: 'Deal! When can we meet?',       time: 'Mon' },
-  { id: '6', brand: 'Puma',   model: 'RS-X',         size: 'US 8.5', foot: 'Left',  user: 'Quinn T.',  avatar: 'QT', lastMsg: 'Great pair, thank you!',        time: 'Sun' },
-];
-
-const MOCK_MESSAGES: Record<string, Message[]> = {
-  '1': [
-    { id: '1', from: 'them', text: 'Hey! Is it still available?', time: '10:02' },
-    { id: '2', from: 'me',   text: 'Yes, just listed it yesterday!', time: '10:04' },
-    { id: '3', from: 'them', text: 'Awesome. Can you ship to Chicago?', time: '10:05' },
-    { id: '4', from: 'me',   text: 'Absolutely, I can ship anywhere in the US.', time: '10:07' },
-    { id: '5', from: 'them', text: 'How much for shipping?', time: '10:08' },
-    { id: '6', from: 'me',   text: 'About $8 via USPS First Class.', time: '10:10' },
-    { id: '7', from: 'them', text: 'Perfect. Can we do $40 all in?', time: '10:12' },
-    { id: '8', from: 'me',   text: "That works for me! I'll DM you the payment link.", time: '10:13' },
-  ],
-  '2': [
-    { id: '9',  from: 'them', text: 'Hi! Perfect condition. Let me know!', time: '9:30' },
-    { id: '10', from: 'me',   text: "Hi Casey! Yes they're barely worn — maybe 3 times.", time: '9:45' },
-  ],
-  '3': [
-    { id: '11', from: 'them', text: 'Interested in a trade?', time: 'Yesterday' },
-    { id: '12', from: 'me',   text: 'What do you have?', time: 'Yesterday' },
-  ],
-};
-
-const MY_LISTINGS: Shoe[] = [
-  { id: '101', brand: 'Nike',   model: 'Air Force 1', size: 'US 10', foot: 'Left',  condition: 'Like New', price: '$50', user: 'Me', location: 'New York', color: 'from-blue-600 to-blue-400' },
-  { id: '102', brand: 'Adidas', model: 'Yeezy 350',   size: 'US 9',  foot: 'Right', condition: 'Good',     price: '$80', user: 'Me', location: 'New York', color: 'from-amber-600 to-yellow-400' },
-];
-
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 const BG      = 'var(--app-bg)';
@@ -154,44 +106,146 @@ const CARD_COLORS = [
   'from-orange-600 to-amber-400', 'from-purple-600 to-violet-400',
 ];
 
+// ─── Loading / error helpers ───────────────────────────────────────────────────
+
+function DiscoverSkeleton() {
+  return (
+    <div className="h-full flex flex-col items-center justify-between py-4 px-4">
+      <div className="w-full max-w-sm flex items-center justify-between mb-2">
+        <div className="h-6 w-24 rounded-lg bg-white/[0.07] animate-pulse" />
+        <div className="h-4 w-28 rounded-lg bg-white/[0.07] animate-pulse" />
+      </div>
+      <div className="relative w-full max-w-sm flex-1 max-h-[480px] my-2">
+        <div className="absolute inset-0 rounded-3xl bg-white/[0.07] animate-pulse" />
+      </div>
+      <div className="flex items-center gap-4 pb-2">
+        {[0, 1, 2].map(i => (
+          <div key={i} className={`rounded-full bg-white/[0.07] animate-pulse ${i === 1 ? 'w-12 h-12' : 'w-14 h-14'}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CardGridSkeleton() {
+  return (
+    <div className="px-4 py-6">
+      <div className="h-6 w-32 rounded-lg bg-white/[0.07] animate-pulse mb-5 mx-1" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} className="rounded-2xl overflow-hidden" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+            <div className="h-32 bg-white/[0.07] animate-pulse" />
+            <div className="p-3 flex flex-col gap-2">
+              <div className="h-3 w-24 rounded bg-white/[0.07] animate-pulse" />
+              <div className="h-2.5 w-16 rounded bg-white/[0.07] animate-pulse" />
+              <div className="h-8 w-full rounded-xl bg-white/[0.07] animate-pulse mt-1" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ConversationSkeleton() {
+  return (
+    <div className="flex flex-col w-full lg:w-72 xl:w-80">
+      <div className="px-4 py-5 border-b" style={{ borderColor: BORDER }}>
+        <div className="h-6 w-24 rounded-lg bg-white/[0.07] animate-pulse" />
+      </div>
+      {[0, 1, 2, 3, 4].map(i => (
+        <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+          <div className="w-10 h-10 rounded-full bg-white/[0.07] animate-pulse flex-shrink-0" />
+          <div className="flex-1">
+            <div className="h-3 w-24 rounded bg-white/[0.07] animate-pulse mb-2" />
+            <div className="h-2.5 w-36 rounded bg-white/[0.07] animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProfileSkeleton() {
+  return (
+    <div className="h-full overflow-y-auto px-4 py-6">
+      <div className="h-6 w-20 rounded-lg bg-white/[0.07] animate-pulse mb-6 mx-1" />
+      <div className="flex flex-col items-center mb-8">
+        <div className="w-24 h-24 rounded-full bg-white/[0.07] animate-pulse mb-4" />
+        <div className="h-6 w-36 rounded-lg bg-white/[0.07] animate-pulse mb-2" />
+        <div className="h-4 w-28 rounded-lg bg-white/[0.07] animate-pulse" />
+      </div>
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {[0, 1, 2].map(i => (
+          <div key={i} className="rounded-2xl p-4 text-center" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+            <div className="h-7 w-8 rounded bg-white/[0.07] animate-pulse mx-auto mb-1" />
+            <div className="h-3 w-12 rounded bg-white/[0.07] animate-pulse mx-auto" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TabError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-center p-8">
+      <div className="text-4xl mb-4">⚠️</div>
+      <p className="text-white/50 text-sm font-dmsans mb-4">Something went wrong. Please try again.</p>
+      <button onClick={onRetry}
+        className="px-5 py-2.5 text-sm font-bold text-white rounded-2xl transition-all active:scale-95"
+        style={{ background: ACCENT }}>
+        Try again
+      </button>
+    </div>
+  );
+}
+
 function DiscoverTab({ userId }: { userId?: string }) {
   const THRESHOLD = 80;
   const DURATION  = 350;
   const EASE      = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 
-  const [deck,       setDeck]       = useState<Shoe[]>(MOCK_SHOES);
+  const [deck,       setDeck]       = useState<Shoe[]>([]);
   const [head,       setHead]       = useState(0);
   const [phase,      setPhase]      = useState<'idle' | 'exiting'>('idle');
   const [exitDir,    setExitDir]    = useState<'pass' | 'match' | 'super'>('pass');
   const [drag,       setDrag]       = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [startPos,   setStartPos]   = useState({ x: 0, y: 0 });
+  const [loading,    setLoading]    = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+  const [retryKey,   setRetryKey]   = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Load unseen listings from Supabase
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) { setLoading(false); return; }
+    setLoading(true);
+    setFetchError(false);
     (async () => {
-      // IDs the user has already swiped
-      const { data: swiped } = await supabase
-        .from('swipes')
-        .select('listing_id')
-        .eq('swiper_id', userId);
-      const swipedIds = (swiped ?? []).map((s: { listing_id: string }) => s.listing_id);
+      try {
+        // IDs the user has already swiped
+        const { data: swiped } = await supabase
+          .from('swipes')
+          .select('listing_id')
+          .eq('swiper_id', userId);
+        const swipedIds = (swiped ?? []).map((s: { listing_id: string }) => s.listing_id);
 
-      // Active listings from other users
-      const query = supabase
-        .from('listings')
-        .select('id, shoe_brand, shoe_model, size, foot_side, condition, price, photos, user_id, users!listings_user_id_fkey(name, location)')
-        .eq('status', 'active')
-        .neq('user_id', userId);
+        // Active listings from other users
+        const query = supabase
+          .from('listings')
+          .select('id, shoe_brand, shoe_model, size, foot_side, condition, price, photos, user_id, users!listings_user_id_fkey(name, location)')
+          .eq('status', 'active')
+          .neq('user_id', userId);
 
-      const { data } = swipedIds.length
-        ? await query.not('id', 'in', `(${swipedIds.join(',')})`)
-        : await query;
+        const { data, error } = swipedIds.length
+          ? await query.not('id', 'in', `(${swipedIds.join(',')})`)
+          : await query;
 
-      if (data && data.length > 0) {
-        const mapped: Shoe[] = (data as Record<string, unknown>[]).map((r, i) => {
+        if (error) throw error;
+
+        const mapped: Shoe[] = (data ?? []).map((r: Record<string, unknown>, i: number) => {
           const profile = r.users as Record<string, string> | null;
           return {
             id:        r.id as string,
@@ -209,9 +263,13 @@ function DiscoverTab({ userId }: { userId?: string }) {
         });
         setDeck(mapped);
         setHead(0);
+      } catch {
+        setFetchError(true);
+      } finally {
+        setLoading(false);
       }
     })();
-  }, [userId]);
+  }, [userId, retryKey]);
 
   const TOTAL = deck.length || 1;
   // Visible window: always 3 cards, looping
@@ -366,6 +424,16 @@ function DiscoverTab({ userId }: { userId?: string }) {
     background: SURFACE,
   });
 
+  if (loading) return <DiscoverSkeleton />;
+  if (fetchError) return <TabError onRetry={() => { setFetchError(false); setRetryKey(k => k + 1); }} />;
+  if (deck.length === 0) return (
+    <div className="h-full flex flex-col items-center justify-center text-center p-8">
+      <div className="text-5xl mb-4">👟</div>
+      <p className="text-white/50 text-sm font-dmsans">No new shoes to discover.</p>
+      <p className="text-white/25 text-xs mt-2 font-dmsans">Check back soon!</p>
+    </div>
+  );
+
   return (
     <div className="h-full flex flex-col items-center justify-between py-4 px-4 overflow-hidden">
       {/* Header */}
@@ -487,25 +555,32 @@ function DiscoverTab({ userId }: { userId?: string }) {
 // ─── Matches tab ──────────────────────────────────────────────────────────────
 
 function MatchesTab({ onMessage, userId }: { onMessage: (id: string) => void; userId?: string }) {
-  const [matches, setMatches] = useState<Match[]>(MOCK_MATCHES);
+  const [matches,    setMatches]    = useState<Match[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+  const [retryKey,   setRetryKey]   = useState(0);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) { setLoading(false); return; }
+    setLoading(true);
+    setFetchError(false);
     (async () => {
-      const { data } = await supabase
-        .from('matches')
-        .select(`
-          id, status, created_at,
-          listing1:listing_id_1(shoe_brand, shoe_model, size, foot_side),
-          listing2:listing_id_2(shoe_brand, shoe_model, size, foot_side),
-          profile1:user_id_1(name, avatar_url),
-          profile2:user_id_2(name, avatar_url)
-        `)
-        .or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`)
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('matches')
+          .select(`
+            id, status, created_at,
+            listing1:listing_id_1(shoe_brand, shoe_model, size, foot_side),
+            listing2:listing_id_2(shoe_brand, shoe_model, size, foot_side),
+            profile1:user_id_1(name, avatar_url),
+            profile2:user_id_2(name, avatar_url)
+          `)
+          .or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`)
+          .order('created_at', { ascending: false });
 
-      if (data && data.length > 0) {
-        const mapped: Match[] = (data as Record<string, unknown>[]).map(r => {
+        if (error) throw error;
+
+        const mapped: Match[] = (data ?? []).map((r: Record<string, unknown>) => {
           const isUser1      = r.user_id_1 === userId;
           const myListing    = isUser1 ? r.listing1 : r.listing2;
           const theirProfile = isUser1 ? r.profile2 : r.profile1;
@@ -524,13 +599,26 @@ function MatchesTab({ onMessage, userId }: { onMessage: (id: string) => void; us
           };
         });
         setMatches(mapped);
+      } catch {
+        setFetchError(true);
+      } finally {
+        setLoading(false);
       }
     })();
-  }, [userId]);
+  }, [userId, retryKey]);
+
+  if (loading) return <CardGridSkeleton />;
+  if (fetchError) return <TabError onRetry={() => { setFetchError(false); setRetryKey(k => k + 1); }} />;
 
   return (
     <div className="h-full overflow-y-auto px-4 py-6">
       <h2 className="text-lg font-bold text-white font-syne mb-5 px-1">Your matches</h2>
+      {matches.length === 0 ? (
+        <div className="text-center py-16">
+          <div className="text-4xl mb-3">💝</div>
+          <p className="text-white/40 text-sm font-dmsans">No matches yet. Keep swiping!</p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {matches.map(m => (
           <div key={m.id} className="rounded-2xl overflow-hidden flex flex-col"
@@ -562,6 +650,7 @@ function MatchesTab({ onMessage, userId }: { onMessage: (id: string) => void; us
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }
@@ -571,8 +660,9 @@ function MatchesTab({ onMessage, userId }: { onMessage: (id: string) => void; us
 function MessagesTab({ initialId, userId }: { initialId?: string; userId?: string }) {
   const [activeId, setActiveId] = useState<string | null>(initialId ?? null);
   const [newMsg, setNewMsg] = useState('');
-  const [localMessages, setLocalMessages] = useState<Record<string, Message[]>>(MOCK_MESSAGES);
+  const [localMessages, setLocalMessages] = useState<Record<string, Message[]>>({});
   const [dbMatches, setDbMatches] = useState<Match[]>([]);
+  const [matchesLoading, setMatchesLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -585,16 +675,17 @@ function MessagesTab({ initialId, userId }: { initialId?: string; userId?: strin
 
   // Load match list with latest message previews
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) { setMatchesLoading(false); return; }
+    setMatchesLoading(true);
     (async () => {
-      const { data } = await supabase
-        .from('matches')
-        .select(`id, created_at, user_id_1, user_id_2, profile1:user_id_1(name, avatar_url), profile2:user_id_2(name, avatar_url), messages(content, created_at)`)
-        .or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`)
-        .order('created_at', { ascending: false });
+      try {
+        const { data } = await supabase
+          .from('matches')
+          .select(`id, created_at, user_id_1, user_id_2, profile1:user_id_1(name, avatar_url), profile2:user_id_2(name, avatar_url), messages(content, created_at)`)
+          .or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`)
+          .order('created_at', { ascending: false });
 
-      if (data && data.length > 0) {
-        const mapped: Match[] = (data as Record<string, unknown>[]).map(r => {
+        const mapped: Match[] = (data ?? []).map((r: Record<string, unknown>) => {
           const isUser1 = r.user_id_1 === userId;
           const tp      = (isUser1 ? r.profile2 : r.profile1) as Record<string, string> | null;
           const msgs    = (r.messages as { content: string; created_at: string }[] | null) ?? [];
@@ -609,6 +700,8 @@ function MessagesTab({ initialId, userId }: { initialId?: string; userId?: strin
           };
         });
         setDbMatches(mapped);
+      } finally {
+        setMatchesLoading(false);
       }
     })();
   }, [userId]);
@@ -676,7 +769,7 @@ function MessagesTab({ initialId, userId }: { initialId?: string; userId?: strin
     await supabase.from('messages').insert({ match_id: activeId, sender_id: userId, content: text });
   };
 
-  const displayMatches = dbMatches.length > 0 ? dbMatches : MOCK_MATCHES;
+  const displayMatches = dbMatches;
 
   const activeMatch = displayMatches.find(m => m.id === activeId);
   const messages    = activeId ? (localMessages[activeId] ?? []) : [];
@@ -686,26 +779,35 @@ function MessagesTab({ initialId, userId }: { initialId?: string; userId?: strin
       {/* Conversation list */}
       <div className={`flex-shrink-0 flex flex-col ${activeId ? 'hidden lg:flex' : 'flex'} w-full lg:w-72 xl:w-80 border-r overflow-y-auto`}
         style={{ borderColor: BORDER }}>
-        <div className="px-4 py-5 border-b" style={{ borderColor: BORDER }}>
-          <h2 className="text-lg font-bold text-white font-syne">Messages</h2>
-        </div>
-        {displayMatches.map(m => (
-          <button key={m.id} onClick={() => setActiveId(m.id)}
-            className="w-full flex items-center gap-3 px-4 py-3.5 transition-colors text-left"
-            style={{ background: activeId === m.id ? `${ACCENT}15` : 'transparent' }}>
-            <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold text-white"
-              style={{ background: ACCENT }}>
-              {m.avatar}
+        {matchesLoading ? <ConversationSkeleton /> : (
+          <>
+            <div className="px-4 py-5 border-b" style={{ borderColor: BORDER }}>
+              <h2 className="text-lg font-bold text-white font-syne">Messages</h2>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-white font-dmsans truncate">{m.user}</p>
-                <span className="text-[10px] text-white/30 flex-shrink-0">{m.time}</span>
+            {displayMatches.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 text-center p-8">
+                <div className="text-4xl mb-3">💬</div>
+                <p className="text-white/40 text-sm font-dmsans">No conversations yet.</p>
               </div>
-              <p className="text-xs text-white/40 truncate">{m.lastMsg}</p>
-            </div>
-          </button>
-        ))}
+            ) : displayMatches.map(m => (
+              <button key={m.id} onClick={() => setActiveId(m.id)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 transition-colors text-left"
+                style={{ background: activeId === m.id ? `${ACCENT}15` : 'transparent' }}>
+                <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold text-white"
+                  style={{ background: ACCENT }}>
+                  {m.avatar}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-white font-dmsans truncate">{m.user}</p>
+                    <span className="text-[10px] text-white/30 flex-shrink-0">{m.time}</span>
+                  </div>
+                  <p className="text-xs text-white/40 truncate">{m.lastMsg}</p>
+                </div>
+              </button>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Chat view */}
@@ -787,7 +889,8 @@ const FEET: Foot[] = ['Left', 'Right', 'Either'];
 const BRANDS = ['Nike', 'Adidas', 'Jordan', 'New Balance', 'Vans', 'Converse', 'Timberland', 'Puma', 'Reebok', 'Other'];
 
 function ListingsTab({ userId }: { userId?: string }) {
-  const [myListings, setMyListings] = useState<Shoe[]>(MY_LISTINGS);
+  const [myListings, setMyListings] = useState<Shoe[]>([]);
+  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({
     brand: '', model: '', size: '', foot: 'Left' as Foot, condition: 'Good' as Condition, price: '',
@@ -798,17 +901,18 @@ function ListingsTab({ userId }: { userId?: string }) {
 
   // Load current user's listings
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) { setLoading(false); return; }
+    setLoading(true);
     (async () => {
-      const { data } = await supabase
-        .from('listings')
-        .select('id, shoe_brand, shoe_model, size, foot_side, condition, price, photos')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
+      try {
+        const { data } = await supabase
+          .from('listings')
+          .select('id, shoe_brand, shoe_model, size, foot_side, condition, price, photos')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
 
-      if (data && data.length > 0) {
-        const mapped: Shoe[] = (data as Record<string, unknown>[]).map((r, i) => ({
+        const mapped: Shoe[] = (data ?? []).map((r: Record<string, unknown>, i: number) => ({
           id:        r.id as string,
           listingId: r.id as string,
           brand:     r.shoe_brand as string,
@@ -822,6 +926,8 @@ function ListingsTab({ userId }: { userId?: string }) {
           color:     CARD_COLORS[i % CARD_COLORS.length],
         }));
         setMyListings(mapped);
+      } finally {
+        setLoading(false);
       }
     })();
   }, [userId]);
@@ -1011,6 +1117,19 @@ function ListingsTab({ userId }: { userId?: string }) {
       )}
 
       {/* Listings grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className="rounded-2xl overflow-hidden" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+              <div className="h-28 bg-white/[0.07] animate-pulse" />
+              <div className="p-3 flex flex-col gap-2">
+                <div className="h-3 w-24 rounded bg-white/[0.07] animate-pulse" />
+                <div className="h-2.5 w-16 rounded bg-white/[0.07] animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {myListings.map(listing => (
           <div key={listing.id} className="rounded-2xl overflow-hidden flex flex-col"
@@ -1040,8 +1159,9 @@ function ListingsTab({ userId }: { userId?: string }) {
           </div>
         ))}
       </div>
+      )}
 
-      {myListings.length === 0 && !adding && (
+      {myListings.length === 0 && !adding && !loading && (
         <div className="text-center py-16">
           <div className="text-4xl mb-3">📦</div>
           <p className="text-white/40 text-sm font-dmsans">No listings yet. Add your first shoe!</p>
@@ -1062,12 +1182,27 @@ interface ProfileData {
 
 function ProfileTab({ userId }: { userId?: string }) {
   const router  = useRouter();
-  const [profile, setProfile] = useState<ProfileData>({});
+  const [profile,  setProfile]  = useState<ProfileData>({});
+  const [loading,  setLoading]  = useState(true);
+  const [stats,    setStats]    = useState({ listings: '—', matches: '—', trades: '—' });
 
   useEffect(() => {
-    if (!userId) return;
-    supabase.from('users').select('*').eq('id', userId).single()
-      .then(({ data }) => { if (data) setProfile(data as ProfileData); });
+    if (!userId) { setLoading(false); return; }
+    setLoading(true);
+    Promise.all([
+      supabase.from('users').select('*').eq('id', userId).single(),
+      supabase.from('listings').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'active'),
+      supabase.from('matches').select('id', { count: 'exact', head: true }).or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`),
+      supabase.from('matches').select('id', { count: 'exact', head: true }).or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`).eq('status', 'completed'),
+    ]).then(([profileRes, listingsRes, matchesRes, tradesRes]) => {
+      if (profileRes.data) setProfile(profileRes.data as ProfileData);
+      setStats({
+        listings: String(listingsRes.count ?? 0),
+        matches:  String(matchesRes.count  ?? 0),
+        trades:   String(tradesRes.count   ?? 0),
+      });
+      setLoading(false);
+    });
   }, [userId]);
 
   async function handleSignOut() {
@@ -1075,13 +1210,15 @@ function ProfileTab({ userId }: { userId?: string }) {
     router.replace('/');
   }
 
-  const name      = profile.name || 'Alex Johnson';
-  const initials  = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  const email     = profile.email || 'alex@email.com';
-  const location  = profile.location || 'New York, NY';
+  const name      = profile.name || '';
+  const initials  = name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
+  const email     = profile.email || '';
+  const location  = profile.location || '';
   const leftSize  = profile.foot_size_left  ? `US ${profile.foot_size_left}`  : null;
   const rightSize = profile.foot_size_right ? `US ${profile.foot_size_right}` : null;
-  const since     = profile.created_at ? new Date(profile.created_at).getFullYear() : 2025;
+  const since     = profile.created_at ? new Date(profile.created_at).getFullYear() : null;
+
+  if (loading) return <ProfileSkeleton />;
 
   return (
     <div className="h-full overflow-y-auto px-4 py-6">
@@ -1101,9 +1238,11 @@ function ProfileTab({ userId }: { userId?: string }) {
             </svg>
           </button>
         </div>
-        <h3 className="text-2xl font-extrabold text-white font-syne">{name}</h3>
-        <p className="text-sm text-white/40 font-dmsans">{email}</p>
-        <p className="text-xs text-white/25 mt-1 font-dmsans">{location} · Member since {since}</p>
+        <h3 className="text-2xl font-extrabold text-white font-syne">{name || 'No name set'}</h3>
+        {email && <p className="text-sm text-white/40 font-dmsans">{email}</p>}
+        <p className="text-xs text-white/25 mt-1 font-dmsans">
+          {[location, since ? `Member since ${since}` : null].filter(Boolean).join(' · ')}
+        </p>
       </div>
 
       {/* Size badges */}
@@ -1114,19 +1253,23 @@ function ProfileTab({ userId }: { userId?: string }) {
           <div>
             <p className="text-[11px] text-white/35 font-dmsans mb-2">Left foot</p>
             <div className="flex flex-wrap gap-1.5">
-              {(leftSize ? [leftSize] : ['US 9', 'UK 8.5', 'EU 42']).map(s => (
-                <span key={s} className="text-[11px] px-2.5 py-1 rounded-full font-semibold font-dmsans"
-                  style={{ background: `${ACCENT}20`, color: ACCENT, border: `1px solid ${ACCENT}40` }}>{s}</span>
-              ))}
+              {leftSize ? (
+                <span className="text-[11px] px-2.5 py-1 rounded-full font-semibold font-dmsans"
+                  style={{ background: `${ACCENT}20`, color: ACCENT, border: `1px solid ${ACCENT}40` }}>{leftSize}</span>
+              ) : (
+                <span className="text-[11px] text-white/25 font-dmsans">Not set</span>
+              )}
             </div>
           </div>
           <div>
             <p className="text-[11px] text-white/35 font-dmsans mb-2">Right foot</p>
             <div className="flex flex-wrap gap-1.5">
-              {(rightSize ? [rightSize] : ['US 9.5', 'UK 9', 'EU 43']).map(s => (
-                <span key={s} className="text-[11px] px-2.5 py-1 rounded-full font-semibold font-dmsans"
-                  style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', border: `1px solid ${BORDER}` }}>{s}</span>
-              ))}
+              {rightSize ? (
+                <span className="text-[11px] px-2.5 py-1 rounded-full font-semibold font-dmsans"
+                  style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', border: `1px solid ${BORDER}` }}>{rightSize}</span>
+              ) : (
+                <span className="text-[11px] text-white/25 font-dmsans">Not set</span>
+              )}
             </div>
           </div>
         </div>
@@ -1135,9 +1278,9 @@ function ProfileTab({ userId }: { userId?: string }) {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         {[
-          { label: 'Listings', value: '2' },
-          { label: 'Matches',  value: '6' },
-          { label: 'Trades',   value: '1' },
+          { label: 'Listings', value: stats.listings },
+          { label: 'Matches',  value: stats.matches  },
+          { label: 'Trades',   value: stats.trades   },
         ].map(s => (
           <div key={s.label} className="rounded-2xl p-4 text-center"
             style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
