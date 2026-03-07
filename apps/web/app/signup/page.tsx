@@ -96,10 +96,23 @@ const STRENGTH_COLORS = ['', '#ef4444', '#ef4444', '#f97316', '#eab308', '#22c55
 
 const BRANDS = ['Nike','Adidas','Jordan','New Balance','Vans','Converse','Timberland','Puma','Reebok','Other'];
 
+const COUNTRY_CODES: Record<string, string> = {
+  'United States':  'us', 'United Kingdom': 'gb',
+  'Austria':        'at', 'Belgium':        'be', 'Bulgaria':    'bg', 'Croatia':     'hr',
+  'Cyprus':         'cy', 'Czech Republic': 'cz', 'Denmark':     'dk', 'Estonia':     'ee',
+  'Finland':        'fi', 'France':         'fr', 'Germany':     'de', 'Greece':      'gr',
+  'Hungary':        'hu', 'Ireland':        'ie', 'Italy':       'it', 'Latvia':      'lv',
+  'Lithuania':      'lt', 'Luxembourg':     'lu', 'Malta':       'mt', 'Netherlands': 'nl',
+  'Poland':         'pl', 'Portugal':       'pt', 'Romania':     'ro', 'Slovakia':    'sk',
+  'Slovenia':       'si', 'Spain':          'es', 'Sweden':      'se',
+};
+
+// US + UK first, then EU countries alphabetically
 const COUNTRIES = [
-  'Australia','Brazil','Canada','China','Denmark','France','Germany','India','Ireland','Italy',
-  'Japan','Mexico','Netherlands','New Zealand','Nigeria','Norway','South Africa','South Korea',
-  'Spain','Sweden','United Kingdom','United States','Other',
+  'United States', 'United Kingdom',
+  ...Object.keys(COUNTRY_CODES)
+    .filter(c => c !== 'United States' && c !== 'United Kingdom')
+    .sort(),
 ];
 
 // ─── Form state ───────────────────────────────────────────────────────────────
@@ -212,6 +225,75 @@ function ConvBadge({ row }: { row: SizeConvRow }) {
           {i < 2 && <span className="text-white/20 text-[10px]">→</span>}
         </span>
       ))}
+    </div>
+  );
+}
+
+// ─── CountrySelect ────────────────────────────────────────────────────────────
+
+function CountrySelect({ value, onChange, error }: {
+  value: string; onChange: (v: string) => void; error?: string;
+}) {
+  const [open,   setOpen]   = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  const filtered = COUNTRIES.filter(c => c.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen(v => !v); setSearch(''); }}
+        className={`w-full flex items-center justify-between bg-white/5 border ${
+          error ? 'border-red-500' : 'border-white/10'
+        } text-sm px-4 py-3.5 rounded-2xl outline-none transition-colors ${
+          value ? 'text-white' : 'text-white/25'
+        }`}
+      >
+        <span>{value || 'Select country…'}</span>
+        <svg className={`w-4 h-4 text-white/30 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-dark-800 border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-50">
+          <div className="p-2 border-b border-white/5">
+            <input
+              type="text" value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search…"
+              autoFocus
+              className="w-full bg-white/5 border border-white/10 text-white text-sm px-3 py-2 rounded-xl outline-none placeholder-white/25"
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+          <div className="max-h-52 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="px-4 py-3 text-sm text-white/30">No results</p>
+            ) : filtered.map(c => (
+              <button key={c} type="button"
+                onClick={() => { onChange(c); setOpen(false); }}
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                  c === value ? 'bg-brand-500/10 text-brand-400 font-semibold' : 'text-white/70 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -407,6 +489,42 @@ export default function SignUpPage() {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm(f => ({ ...f, [k]: v }));
 
+  // ── City / country validation ──────────────────────────────────────────────
+  const [cityValidating,      setCityValidating]      = useState(false);
+  const [cityValidationError, setCityValidationError] = useState<string | null>(null);
+
+  const checkCityCountry = useCallback(async (city: string, country: string) => {
+    if (!city.trim() || !country) { setCityValidationError(null); return; }
+    const code = COUNTRY_CODES[country];
+    if (!code) return;
+    setCityValidating(true);
+    setCityValidationError(null);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city.trim())}&countrycodes=${code}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'en' } },
+      );
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        setCityValidationError(`"${city}" not found in ${country}`);
+      }
+    } catch {
+      // Network error — don't block the user
+    } finally {
+      setCityValidating(false);
+    }
+  }, []);
+
+  const handleCityBlur = () => {
+    if (form.city.trim() && form.country) checkCityCountry(form.city, form.country);
+  };
+
+  const handleCountryChange = (country: string) => {
+    set('country', country);
+    if (form.city.trim()) checkCityCountry(form.city, country);
+  };
+
+  // ── Navigation ────────────────────────────────────────────────────────────
   const advance = (n: number, dir: 'right'|'left') => {
     setDirection(dir); setAnimKey(k => k + 1); setStep(n);
   };
@@ -414,6 +532,10 @@ export default function SignUpPage() {
   const goNext = () => {
     const e = validate(step, form);
     if (Object.keys(e).length) { setErrors(e); return; }
+    if (step === 1) {
+      if (cityValidating) return;
+      if (cityValidationError) { setErrors({ city: cityValidationError }); return; }
+    }
     setErrors({}); advance(step + 1, 'right');
   };
 
@@ -777,25 +899,32 @@ export default function SignUpPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="city" className={lbl}>City</label>
-                          <input id="city" type="text" value={form.city}
-                            onChange={e => set('city', e.target.value)}
-                            placeholder="New York" className={field(!!errors.city)} />
-                          {errors.city && <p className={errMsg}>{errors.city}</p>}
+                          <div className="relative">
+                            <input id="city" type="text" value={form.city}
+                              onChange={e => { set('city', e.target.value); setCityValidationError(null); }}
+                              onBlur={handleCityBlur}
+                              placeholder="New York"
+                              className={field(!!(errors.city || cityValidationError)) + (cityValidating ? ' pr-11' : '')} />
+                            {cityValidating && (
+                              <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                                <svg className="w-4 h-4 animate-spin text-white/30" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          {(errors.city || cityValidationError) && (
+                            <p className={errMsg}>{errors.city || cityValidationError}</p>
+                          )}
                         </div>
                         <div>
-                          <label htmlFor="country" className={lbl}>Country</label>
-                          <div className="relative">
-                            <select id="country" value={form.country} onChange={e => set('country', e.target.value)}
-                              className={`w-full bg-white/5 border ${errors.country ? 'border-red-500' : 'border-white/10 focus:border-brand-500'} text-white text-sm px-4 py-3.5 rounded-2xl outline-none focus:ring-1 focus:ring-brand-500 appearance-none transition-colors`}>
-                              <option value="" className="bg-zinc-900">Select…</option>
-                              {COUNTRIES.map(c => <option key={c} value={c} className="bg-zinc-900">{c}</option>)}
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/30">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </div>
-                          </div>
+                          <label className={lbl}>Country</label>
+                          <CountrySelect
+                            value={form.country}
+                            onChange={handleCountryChange}
+                            error={errors.country}
+                          />
                           {errors.country && <p className={errMsg}>{errors.country}</p>}
                         </div>
                       </div>
