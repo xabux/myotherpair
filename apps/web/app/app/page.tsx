@@ -1206,25 +1206,84 @@ function ProfileTab({ userId }: { userId?: string }) {
   const [profile,  setProfile]  = useState<ProfileData>({});
   const [loading,  setLoading]  = useState(true);
   const [stats,    setStats]    = useState({ listings: '—', matches: '—', trades: '—' });
+  const [editing,  setEditing]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [saveErr,  setSaveErr]  = useState('');
+  const [editForm, setEditForm] = useState({
+    name: '', location: '', leftSize: '', rightSize: '', isAmputee: false,
+  });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const avatarRef = useRef<HTMLInputElement>(null);
+
+  const loadProfile = async (uid: string) => {
+    const [profileRes, listingsRes, matchesRes, tradesRes] = await Promise.all([
+      supabase.from('users').select('*').eq('id', uid).single(),
+      supabase.from('listings').select('id', { count: 'exact', head: true }).eq('user_id', uid).eq('status', 'active'),
+      supabase.from('matches').select('id', { count: 'exact', head: true }).or(`user_id_1.eq.${uid},user_id_2.eq.${uid}`),
+      supabase.from('matches').select('id', { count: 'exact', head: true }).or(`user_id_1.eq.${uid},user_id_2.eq.${uid}`).eq('status', 'completed'),
+    ]);
+    if (profileRes.data) setProfile(profileRes.data as ProfileData);
+    setStats({
+      listings: String(listingsRes.count ?? 0),
+      matches:  String(matchesRes.count  ?? 0),
+      trades:   String(tradesRes.count   ?? 0),
+    });
+  };
 
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
     setLoading(true);
-    Promise.all([
-      supabase.from('users').select('*').eq('id', userId).single(),
-      supabase.from('listings').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'active'),
-      supabase.from('matches').select('id', { count: 'exact', head: true }).or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`),
-      supabase.from('matches').select('id', { count: 'exact', head: true }).or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`).eq('status', 'completed'),
-    ]).then(([profileRes, listingsRes, matchesRes, tradesRes]) => {
-      if (profileRes.data) setProfile(profileRes.data as ProfileData);
-      setStats({
-        listings: String(listingsRes.count ?? 0),
-        matches:  String(matchesRes.count  ?? 0),
-        trades:   String(tradesRes.count   ?? 0),
-      });
-      setLoading(false);
-    });
+    loadProfile(userId).finally(() => setLoading(false));
   }, [userId]);
+
+  function openEdit() {
+    setEditForm({
+      name:       profile.name       ?? '',
+      location:   profile.location   ?? '',
+      leftSize:   profile.foot_size_left  != null ? String(profile.foot_size_left)  : '',
+      rightSize:  profile.foot_size_right != null ? String(profile.foot_size_right) : '',
+      isAmputee:  profile.is_amputee ?? false,
+    });
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setSaveErr('');
+    setEditing(true);
+  }
+
+  async function handleSave() {
+    if (!userId) return;
+    setSaving(true);
+    setSaveErr('');
+    try {
+      let avatar_url = profile.avatar_url;
+      if (avatarFile) {
+        const ext  = avatarFile.name.split('.').pop() ?? 'jpg';
+        const path = `${userId}/avatar.${ext}`;
+        const { data: stored } = await supabase.storage
+          .from('avatars').upload(path, avatarFile, { upsert: true });
+        if (stored) {
+          const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+          avatar_url = publicUrl;
+        }
+      }
+      const { error } = await supabase.from('users').update({
+        name:            editForm.name.trim() || null,
+        location:        editForm.location.trim() || null,
+        foot_size_left:  editForm.leftSize  ? parseFloat(editForm.leftSize)  : null,
+        foot_size_right: editForm.rightSize ? parseFloat(editForm.rightSize) : null,
+        is_amputee:      editForm.isAmputee,
+        avatar_url,
+      }).eq('id', userId);
+      if (error) throw error;
+      await loadProfile(userId);
+      setEditing(false);
+    } catch (e: unknown) {
+      setSaveErr(e instanceof Error ? e.message : 'Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -1239,6 +1298,8 @@ function ProfileTab({ userId }: { userId?: string }) {
   const rightSize = profile.foot_size_right ? `US ${profile.foot_size_right}` : null;
   const since     = profile.created_at ? new Date(profile.created_at).getFullYear() : null;
 
+  const inputCls = `w-full bg-white/5 border text-sm text-white placeholder-white/25 px-4 py-3 rounded-2xl outline-none transition-colors font-dmsans`;
+
   if (loading) return <ProfileSkeleton />;
 
   return (
@@ -1249,15 +1310,9 @@ function ProfileTab({ userId }: { userId?: string }) {
       <div className="flex flex-col items-center text-center mb-8">
         <div className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-extrabold text-white mb-4 relative overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #e63946, #ff6b6b)' }}>
-          {profile.avatar_url
-            ? <img src={profile.avatar_url} alt={name} className="w-full h-full object-cover" />
+          {(avatarPreview || profile.avatar_url)
+            ? <img src={avatarPreview ?? profile.avatar_url!} alt={name} className="w-full h-full object-cover" />
             : initials}
-          <button className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white/10 border flex items-center justify-center transition-colors hover:bg-white/20"
-            style={{ borderColor: BORDER }}>
-            <svg className="w-3.5 h-3.5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-          </button>
         </div>
         <h3 className="text-2xl font-extrabold text-white font-syne">{name || 'No name set'}</h3>
         {email && <p className="text-sm text-white/40 font-dmsans">{email}</p>}
@@ -1265,6 +1320,96 @@ function ProfileTab({ userId }: { userId?: string }) {
           {[location, since ? `Member since ${since}` : null].filter(Boolean).join(' · ')}
         </p>
       </div>
+
+      {/* Edit form */}
+      {editing && (
+        <div className="rounded-3xl p-5 mb-4 flex flex-col gap-4"
+          style={{ background: SURFACE, border: `1px solid ${BORDER}`, animation: 'step-enter-right 0.25s ease-out' }}>
+          <h3 className="text-sm font-bold text-white font-syne">Edit profile</h3>
+
+          {/* Avatar upload */}
+          <div>
+            <label className="block text-[11px] font-semibold text-white/40 mb-1.5 font-dmsans">Profile photo</label>
+            <input ref={avatarRef} type="file" accept="image/*" className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+                setAvatarFile(f);
+                setAvatarPreview(URL.createObjectURL(f));
+              }}
+            />
+            <button type="button" onClick={() => avatarRef.current?.click()}
+              className="flex items-center gap-3 text-xs font-semibold rounded-2xl border px-4 py-2.5 transition-all font-dmsans"
+              style={{ borderColor: BORDER, color: 'rgba(255,255,255,0.5)', background: 'transparent' }}>
+              {avatarPreview
+                ? <><img src={avatarPreview} className="w-6 h-6 rounded-full object-cover" alt="" /> Change photo</>
+                : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> Upload photo</>
+              }
+            </button>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="block text-[11px] font-semibold text-white/40 mb-1.5 font-dmsans">Full name</label>
+            <input type="text" value={editForm.name}
+              onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Your name" className={inputCls} style={{ borderColor: BORDER }} />
+          </div>
+
+          {/* Location */}
+          <div>
+            <label className="block text-[11px] font-semibold text-white/40 mb-1.5 font-dmsans">Location</label>
+            <input type="text" value={editForm.location}
+              onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))}
+              placeholder="City, State" className={inputCls} style={{ borderColor: BORDER }} />
+          </div>
+
+          {/* Foot sizes */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-white/40 mb-1.5 font-dmsans">Left foot (US)</label>
+              <input type="number" step="0.5" min="4" max="16" value={editForm.leftSize}
+                onChange={e => setEditForm(f => ({ ...f, leftSize: e.target.value }))}
+                placeholder="9.5" className={inputCls} style={{ borderColor: BORDER }} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-white/40 mb-1.5 font-dmsans">Right foot (US)</label>
+              <input type="number" step="0.5" min="4" max="16" value={editForm.rightSize}
+                onChange={e => setEditForm(f => ({ ...f, rightSize: e.target.value }))}
+                placeholder="9.5" className={inputCls} style={{ borderColor: BORDER }} />
+            </div>
+          </div>
+
+          {/* Amputee toggle */}
+          <button type="button"
+            onClick={() => setEditForm(f => ({ ...f, isAmputee: !f.isAmputee }))}
+            className="flex items-center gap-3 text-sm font-dmsans text-white/70 text-left">
+            <div className={`w-10 h-6 rounded-full flex-shrink-0 flex items-center px-0.5 transition-colors ${editForm.isAmputee ? '' : 'bg-white/10'}`}
+              style={editForm.isAmputee ? { background: ACCENT } : {}}>
+              <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${editForm.isAmputee ? 'translate-x-4' : 'translate-x-0'}`} />
+            </div>
+            I am an amputee / missing limb
+          </button>
+
+          {saveErr && (
+            <p className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5">{saveErr}</p>
+          )}
+
+          <div className="flex gap-3">
+            <button onClick={() => setEditing(false)}
+              className="flex-1 py-3 text-sm font-bold text-white/60 rounded-2xl border transition-all"
+              style={{ background: 'transparent', borderColor: BORDER }}>
+              Cancel
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className="flex-1 py-3 text-sm font-bold text-white rounded-2xl transition-all active:scale-[.97] disabled:opacity-50"
+              style={{ background: ACCENT }}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Size badges */}
       <div className="rounded-3xl p-5 mb-4"
@@ -1313,20 +1458,13 @@ function ProfileTab({ userId }: { userId?: string }) {
 
       {/* Actions */}
       <div className="flex flex-col gap-2">
-        <button className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-semibold text-white/70 hover:text-white transition-all font-dmsans"
+        <button onClick={editing ? () => setEditing(false) : openEdit}
+          className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-semibold text-white/70 hover:text-white transition-all font-dmsans"
           style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
-          Edit profile
-        </button>
-        <button className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-semibold text-white/70 hover:text-white transition-all font-dmsans"
-          style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          Settings
+          {editing ? 'Cancel editing' : 'Edit profile'}
         </button>
         <button onClick={handleSignOut}
           className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-semibold transition-all font-dmsans"
