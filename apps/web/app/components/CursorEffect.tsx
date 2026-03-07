@@ -10,6 +10,9 @@ export default function CursorEffect() {
   const raf  = useRef<number>(0);
 
   useEffect(() => {
+    const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    if (isTouchDevice) return;
+
     const onMove = (e: MouseEvent) => {
       pos.current = { x: e.clientX, y: e.clientY };
       if (dotRef.current) {
@@ -43,14 +46,14 @@ export default function CursorEffect() {
     <>
       <div
         ref={dotRef}
-        className="pointer-events-none fixed top-0 left-0 z-[9999]"
+        className="cursor pointer-events-none fixed top-0 left-0 z-[9999]"
         style={{ willChange: 'transform' }}
       >
         <div className="w-2.5 h-2.5 rounded-full bg-[#e63946]" />
       </div>
       <div
         ref={ringRef}
-        className="pointer-events-none fixed top-0 left-0 z-[9998]"
+        className="cursor-ring pointer-events-none fixed top-0 left-0 z-[9998]"
         style={{ willChange: 'transform' }}
       >
         <div className="w-9 h-9 rounded-full border-2 border-[#e63946]/50" />

@@ -203,3 +203,12 @@
   0%, 100% { transform: translateY(0px); }
   50%      { transform: translateY(-6px); }
 }
+
+/* ─── Touch / mobile cursor fix ───────────────────────────────────────────── */
+
+html, body { overflow-x: hidden; }
+
+@media (hover: none) and (pointer: coarse) {
+  .cursor, .cursor-ring { display: none !important; }
+  body { cursor: auto !important; }
+}

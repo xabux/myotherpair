@@ -85,17 +85,17 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — full-screen overlay */}
       {mobileOpen && (
-        <div className="md:hidden bg-dark-900/95 backdrop-blur-2xl border-b border-white/5 px-6 pt-3 pb-6 flex flex-col gap-1">
+        <div className="fixed inset-0 z-40 md:hidden bg-dark-900/97 backdrop-blur-2xl flex flex-col px-6 pt-20 pb-10 gap-1 overflow-y-auto">
           {NAV_LINKS.map(({ label, href }) => (
-            <a key={href} href={href} className="text-sm font-medium text-white/60 py-3 hover:text-white transition-colors" onClick={() => setMobileOpen(false)}>
+            <a key={href} href={href} className="text-lg font-semibold text-white/70 py-4 border-b border-white/5 hover:text-white transition-colors" onClick={() => setMobileOpen(false)}>
               {label}
             </a>
           ))}
-          <div className="pt-3 border-t border-white/10 mt-1 flex flex-col gap-2">
-            <a href="/login" className="text-center text-sm font-semibold text-white/70 py-2" onClick={() => setMobileOpen(false)}>Log in</a>
-            <a href="/signup" className="text-center text-sm font-bold bg-tinder text-white py-3 rounded-full shadow-glow-sm" onClick={() => setMobileOpen(false)}>Get Started</a>
+          <div className="pt-8 flex flex-col gap-3">
+            <a href="/login" className="text-center text-base font-semibold text-white/70 py-3.5 rounded-2xl border border-white/10 hover:bg-white/5 transition-colors" onClick={() => setMobileOpen(false)}>Log in</a>
+            <a href="/signup" className="text-center text-base font-bold bg-tinder text-white py-3.5 rounded-full shadow-glow-sm" onClick={() => setMobileOpen(false)}>Get Started</a>
           </div>
         </div>
       )}

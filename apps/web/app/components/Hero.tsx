@@ -163,7 +163,7 @@ export default function Hero() {
       </div>
 
       {/* Main content — z-10 */}
-      <div className="relative z-10 max-w-6xl mx-auto w-full grid lg:grid-cols-2 gap-16 items-center">
+      <div className="relative z-10 max-w-6xl mx-auto w-full grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
 
         {/* ── Left copy ── */}
         <div>
@@ -214,21 +214,21 @@ export default function Hero() {
 
         {/* ── Right — phone mockup ── */}
         <div
-          className="relative hidden lg:flex items-center justify-center"
-          style={{ height: '640px' }}
+          className="relative flex items-center justify-center max-w-[300px] mx-auto lg:max-w-none w-full"
+          style={{ height: 'clamp(500px, 80vw, 640px)' }}
         >
-          {/* Floating chip 1 */}
-          <div className="absolute left-0 top-16 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card flex items-center gap-2 animate-float-1 whitespace-nowrap">
+          {/* Floating chip 1 — desktop only */}
+          <div className="absolute left-0 top-16 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card hidden lg:flex items-center gap-2 animate-float-1 whitespace-nowrap">
             <span className="text-green-400">✓</span> Match confirmed!
           </div>
 
-          {/* Floating chip 2 */}
-          <div className="absolute right-0 top-40 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card flex items-center gap-2 animate-float-2 whitespace-nowrap">
+          {/* Floating chip 2 — desktop only */}
+          <div className="absolute right-0 top-40 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card hidden lg:flex items-center gap-2 animate-float-2 whitespace-nowrap">
             📍 New listing nearby
           </div>
 
-          {/* Floating chip 3 */}
-          <div className="absolute left-2 bottom-24 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card flex items-center gap-2 animate-float-3 whitespace-nowrap">
+          {/* Floating chip 3 — desktop only */}
+          <div className="absolute left-2 bottom-24 z-20 bg-dark-800 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white/80 font-semibold shadow-card hidden lg:flex items-center gap-2 animate-float-3 whitespace-nowrap">
             📏 0.5 mi away
           </div>
 

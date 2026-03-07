@@ -662,7 +662,7 @@ export default function SignUpPage() {
 
                     {/* 6-digit boxes */}
                     <div
-                      className="flex gap-3 mb-6"
+                      className="flex gap-2 sm:gap-3 mb-6"
                       style={otpError ? { animation: 'shake 0.4s ease-out' } : {}}
                       onPaste={handleOtpPaste}
                     >
@@ -676,13 +676,14 @@ export default function SignUpPage() {
                           value={digit}
                           onChange={e => handleOtpInput(i, e.target.value)}
                           onKeyDown={e => handleOtpKeyDown(i, e)}
-                          className={`w-12 h-14 text-center text-xl font-bold rounded-2xl border bg-white/5 text-white outline-none transition-all ${
+                          className={`text-center text-xl font-bold rounded-2xl border bg-white/5 text-white outline-none transition-all ${
                             otpError
                               ? 'border-red-500 bg-red-500/10 text-red-400'
                               : digit
                                 ? 'border-brand-500 bg-brand-500/10'
                                 : 'border-white/15 focus:border-brand-500 focus:bg-white/8'
                           }`}
+                          style={{ width: 'clamp(40px, 12vw, 52px)', height: 'clamp(48px, 14vw, 60px)' }}
                         />
                       ))}
                     </div>
@@ -753,7 +754,7 @@ export default function SignUpPage() {
                     </div>
 
                     <div className="flex flex-col gap-6">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="firstName" className={lbl}>First name</label>
                           <input id="firstName" type="text" value={form.firstName}
@@ -778,7 +779,7 @@ export default function SignUpPage() {
                         {errors.email && <p className={errMsg}>{errors.email}</p>}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="password" className={lbl}>Password</label>
                           <div className="relative">
@@ -854,7 +855,7 @@ export default function SignUpPage() {
                           placeholder="Apt 4B" className={field()} />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="city" className={lbl}>City</label>
                           <input id="city" type="text" value={form.city}
@@ -871,7 +872,7 @@ export default function SignUpPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="postal" className={lbl}>Postal / ZIP</label>
                           <input id="postal" type="text" value={form.postal}

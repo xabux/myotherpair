@@ -531,7 +531,7 @@ function MatchesTab({ onMessage, userId }: { onMessage: (id: string) => void; us
   return (
     <div className="h-full overflow-y-auto px-4 py-6">
       <h2 className="text-lg font-bold text-white font-syne mb-5 px-1">Your matches</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {matches.map(m => (
           <div key={m.id} className="rounded-2xl overflow-hidden flex flex-col"
             style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
@@ -1011,7 +1011,7 @@ function ListingsTab({ userId }: { userId?: string }) {
       )}
 
       {/* Listings grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {myListings.map(listing => (
           <div key={listing.id} className="rounded-2xl overflow-hidden flex flex-col"
             style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
@@ -1294,7 +1294,7 @@ export default function AppPage() {
 
         {/* ═══ Mobile bottom nav ═════════════════════════════════════════════ */}
         <nav className="lg:hidden flex-shrink-0 flex items-center border-t"
-          style={{ background: SURFACE, borderColor: BORDER }}>
+          style={{ background: SURFACE, borderColor: BORDER, paddingBottom: 'env(safe-area-inset-bottom)' }}>
           {NAV_ITEMS.map(item => (
             <button key={item.id} onClick={() => setTab(item.id)}
               className="flex-1 flex flex-col items-center gap-1 py-3 transition-colors"

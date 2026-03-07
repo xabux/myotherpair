@@ -41,7 +41,7 @@ export default function LoginPage() {
     'w-full bg-white/5 border border-white/10 text-white placeholder-white/25 text-sm px-4 py-3.5 rounded-2xl outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors';
 
   return (
-    <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center px-6 py-16">
+    <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center px-4 sm:px-6 py-16">
 
       {/* Logo + toggle */}
       <div className="flex items-center justify-between w-full max-w-sm mb-10">
@@ -54,7 +54,7 @@ export default function LoginPage() {
       </div>
 
       {/* Card */}
-      <div className="w-full max-w-sm bg-dark-800 border border-white/5 rounded-3xl px-8 py-10">
+      <div className="w-full max-w-sm bg-dark-800 border border-white/5 rounded-3xl px-5 sm:px-8 py-8 sm:py-10">
 
         <h1 className="text-2xl font-bold text-white tracking-tight text-center mb-2">Sign in</h1>
         <p className="text-sm text-white/40 text-center mb-8">Welcome back to MyOtherPair.</p>
