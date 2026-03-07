@@ -10,7 +10,28 @@ import type { User } from '@supabase/supabase-js';
 
 type Tab = 'discover' | 'matches' | 'messages' | 'listings' | 'profile';
 type Foot = 'Left' | 'Right' | 'Either';
-type Condition = 'New' | 'Like New' | 'Good' | 'Fair' | 'Poor';
+type Condition = 'new_with_tags' | 'new_without_tags' | 'excellent' | 'good' | 'fair' | 'poor';
+
+// DB ↔ UI conversion helpers
+function toDbFoot(f: Foot): string {
+  if (f === 'Left')  return 'L';
+  if (f === 'Right') return 'R';
+  return 'single';
+}
+function fromDbFoot(s: string): Foot {
+  if (s === 'L') return 'Left';
+  if (s === 'R') return 'Right';
+  return 'Either';
+}
+
+const CONDITION_LABELS: Record<Condition, string> = {
+  new_with_tags:    'New (tags on)',
+  new_without_tags: 'New',
+  excellent:        'Excellent',
+  good:             'Good',
+  fair:             'Fair',
+  poor:             'Poor',
+};
 
 interface Shoe {
   id: string;
@@ -253,7 +274,7 @@ function DiscoverTab({ userId }: { userId?: string }) {
             brand:     r.shoe_brand as string,
             model:     r.shoe_model as string,
             size:      `US ${r.size as string}`,
-            foot:      ((r.foot_side as string) === 'left' ? 'Left' : 'Right') as Foot,
+            foot:      fromDbFoot(r.foot_side as string),
             condition: r.condition as Condition,
             price:     r.price ? `$${r.price}` : '$—',
             user:      profile?.name ?? 'User',
@@ -503,7 +524,7 @@ function DiscoverTab({ userId }: { userId?: string }) {
           <div className="p-5 flex flex-col gap-3">
             <div>
               <h3 className="text-xl font-bold text-white font-syne leading-tight">{cards[0].brand} {cards[0].model}</h3>
-              <p className="text-sm text-white/50 font-dmsans mt-0.5">{cards[0].size} · {cards[0].condition}</p>
+              <p className="text-sm text-white/50 font-dmsans mt-0.5">{cards[0].size} · {CONDITION_LABELS[cards[0].condition]}</p>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -591,7 +612,7 @@ function MatchesTab({ onMessage, userId }: { onMessage: (id: string) => void; us
             brand:   (ml?.shoe_brand as string) ?? '',
             model:   (ml?.shoe_model as string) ?? '',
             size:    `US ${ml?.size ?? ''}`,
-            foot:    ((ml?.foot_side as string) === 'left' ? 'Left' : 'Right') as Foot,
+            foot:    fromDbFoot((ml?.foot_side as string) ?? ''),
             user:    tp?.name ?? 'User',
             avatar:  tp?.name?.slice(0, 2).toUpperCase() ?? '??',
             lastMsg: '',
@@ -884,7 +905,7 @@ function MessagesTab({ initialId, userId }: { initialId?: string; userId?: strin
 
 // ─── Listings tab ─────────────────────────────────────────────────────────────
 
-const CONDITIONS: Condition[] = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
+const CONDITIONS: Condition[] = ['new_with_tags', 'new_without_tags', 'excellent', 'good', 'fair', 'poor'];
 const FEET: Foot[] = ['Left', 'Right', 'Either'];
 const BRANDS = ['Nike', 'Adidas', 'Jordan', 'New Balance', 'Vans', 'Converse', 'Timberland', 'Puma', 'Reebok', 'Other'];
 
@@ -893,7 +914,7 @@ function ListingsTab({ userId }: { userId?: string }) {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({
-    brand: '', model: '', size: '', foot: 'Left' as Foot, condition: 'Good' as Condition, price: '',
+    brand: '', model: '', size: '', foot: 'Left' as Foot, condition: 'good' as Condition, price: '',
   });
   const [listingPhoto, setListingPhoto] = useState<File | null>(null);
   const [listingPhotoUrl, setListingPhotoUrl] = useState<string | null>(null);
@@ -955,7 +976,7 @@ function ListingsTab({ userId }: { userId?: string }) {
         shoe_brand: form.brand,
         shoe_model: form.model,
         size:       parseFloat(form.size),
-        foot_side:  form.foot.toLowerCase(),
+        foot_side:  toDbFoot(form.foot),
         condition:  form.condition,
         price:      parseFloat(form.price || '0'),
         photos:     imageUrls,
@@ -988,7 +1009,7 @@ function ListingsTab({ userId }: { userId?: string }) {
       setMyListings(l => [next, ...l]);
     }
 
-    setForm({ brand: '', model: '', size: '', foot: 'Left', condition: 'Good', price: '' });
+    setForm({ brand: '', model: '', size: '', foot: 'Left', condition: 'good', price: '' });
     setListingPhoto(null);
     setListingPhotoUrl(null);
     if (listingPhotoRef.current) listingPhotoRef.current.value = '';
@@ -1077,7 +1098,7 @@ function ListingsTab({ userId }: { userId?: string }) {
                     borderColor:  form.condition === c ? ACCENT : BORDER,
                     color:        form.condition === c ? '#fff' : 'rgba(255,255,255,0.5)',
                   }}>
-                  {c}
+                  {CONDITION_LABELS[c]}
                 </button>
               ))}
             </div>
@@ -1137,7 +1158,7 @@ function ListingsTab({ userId }: { userId?: string }) {
             <div className={`h-28 bg-gradient-to-br ${listing.color} flex items-center justify-center relative`}>
               <span className="text-4xl opacity-30">👟</span>
               <span className="absolute top-2 right-2 text-[10px] font-bold text-white/60 bg-black/30 px-2 py-0.5 rounded-full">
-                {listing.condition}
+                {CONDITION_LABELS[listing.condition]}
               </span>
             </div>
             <div className="p-3">
