@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
+import { getTranslations, type Translations } from './i18n';
 
 export interface LocaleOption {
   code: string;
@@ -79,4 +80,9 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
 export function useLocale() {
   return useContext(LocaleContext);
+}
+
+export function useTranslations(): Translations {
+  const { locale } = useLocale();
+  return getTranslations(locale);
 }

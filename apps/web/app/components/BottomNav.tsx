@@ -3,17 +3,19 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Search, PlusCircle, MessageCircle, User } from 'lucide-react';
-
-const items = [
-  { to: '/app',          icon: Home,          label: 'Home'     },
-  { to: '/app/browse',   icon: Search,        label: 'Listings' },
-  { to: '/app/create',   icon: PlusCircle,    label: 'List', isAction: true },
-  { to: '/app/messages', icon: MessageCircle, label: 'Chat'     },
-  { to: '/app/profile',  icon: User,          label: 'Profile'  },
-];
+import { useTranslations } from '../../lib/locale';
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const t = useTranslations();
+
+  const items = [
+    { to: '/app',          icon: Home,          label: t.nav_home     },
+    { to: '/app/browse',   icon: Search,        label: t.nav_browse   },
+    { to: '/app/create',   icon: PlusCircle,    label: t.nav_list, isAction: true },
+    { to: '/app/messages', icon: MessageCircle, label: t.nav_chat     },
+    { to: '/app/profile',  icon: User,          label: t.nav_profile  },
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/50 pb-[env(safe-area-inset-bottom)]">

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { formatSizeLabel } from '../../../lib/sizeConversion';
 import { useTheme } from '../../../lib/theme';
-import { useLocale, LOCALES } from '../../../lib/locale';
+import { useLocale, useTranslations, LOCALES } from '../../../lib/locale';
 
 interface ProfileData {
   name?: string;
@@ -70,6 +70,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { theme, toggle: toggleTheme } = useTheme();
   const { locale, setLocale } = useLocale();
+  const t = useTranslations();
   const [userId,        setUserId]        = useState<string | null>(null);
   const [profile,       setProfile]       = useState<ProfileData>({});
   const [stats,         setStats]         = useState<Stats>({ listings: 0, matches: 0, trades: 0 });
@@ -125,7 +126,7 @@ export default function ProfilePage() {
         <header className="sticky top-0 z-40 border-b border-border/30">
           <div className="absolute inset-0 bg-background/80 backdrop-blur-xl" />
           <div className="relative flex items-center justify-center px-6 py-4 max-w-lg mx-auto">
-            <h1 className="text-[14px] font-semibold text-foreground tracking-[0.05em] uppercase">Profile</h1>
+            <h1 className="text-[14px] font-semibold text-foreground tracking-[0.05em] uppercase">{t.profile_title}</h1>
           </div>
         </header>
         <div className="flex flex-col items-center px-5 pt-8 pb-4">
@@ -143,7 +144,7 @@ export default function ProfilePage() {
       <header className="sticky top-0 z-40 border-b border-border/30">
         <div className="absolute inset-0 bg-background/80 backdrop-blur-xl" />
         <div className="relative flex items-center justify-center px-6 py-4 max-w-lg mx-auto">
-          <h1 className="text-[14px] font-semibold text-foreground tracking-[0.05em] uppercase">Profile</h1>
+          <h1 className="text-[14px] font-semibold text-foreground tracking-[0.05em] uppercase">{t.profile_title}</h1>
         </div>
       </header>
 
@@ -185,9 +186,9 @@ export default function ProfilePage() {
             {/* Quick stats */}
             <div className="flex items-center gap-6 mt-4 pt-4 border-t border-border/20">
               {[
-                { label: 'Listings', value: stats.listings },
-                { label: 'Matches',  value: stats.matches  },
-                { label: 'Sizes',    value: leftSize && rightSize ? `L · R` : leftSize ? `L` : rightSize ? `R` : '—' },
+                { label: t.profile_stat_listings, value: stats.listings },
+                { label: t.profile_stat_matches,  value: stats.matches  },
+                { label: t.profile_stat_sizes,    value: leftSize && rightSize ? `L · R` : leftSize ? `L` : rightSize ? `R` : '—' },
               ].map((stat, i) => (
                 <div key={i} className="text-center flex-1">
                   <p className="text-[13px] font-bold text-foreground leading-none">{stat.value}</p>
@@ -204,7 +205,7 @@ export default function ProfilePage() {
             <div className="flex items-start gap-3">
               <Search className="h-3.5 w-3.5 text-accent mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] text-accent/50 tracking-[0.25em] uppercase font-medium mb-1">Searching for</p>
+                <p className="text-[9px] text-accent/50 tracking-[0.25em] uppercase font-medium mb-1">{t.profile_searching_for}</p>
                 {editingStatus ? (
                   <div className="flex items-center gap-2">
                     <input
@@ -245,11 +246,11 @@ export default function ProfilePage() {
           <Link href="/app/create">
             <div className="relative overflow-hidden gradient-warm p-5 flex items-center gap-4">
               <div className="flex-1">
-                <h3 className="font-display text-[1.1rem] font-bold text-accent-foreground mb-1">List a shoe</h3>
-                <p className="text-[12px] text-accent-foreground/70 leading-relaxed mb-3">Find a match for your spare single shoe</p>
+                <h3 className="font-display text-[1.1rem] font-bold text-accent-foreground mb-1">{t.profile_list_shoe}</h3>
+                <p className="text-[12px] text-accent-foreground/70 leading-relaxed mb-3">{t.profile_list_subtitle}</p>
                 <div className="inline-flex items-center gap-1.5 bg-accent-foreground/10 backdrop-blur-sm px-3 py-1.5 text-[10px] tracking-[0.12em] uppercase font-semibold text-accent-foreground">
                   <PlusCircle className="h-3 w-3" />
-                  List now
+                  {t.profile_list_now}
                 </div>
               </div>
               <div className="w-20 h-20 rounded-lg bg-accent-foreground/10 flex items-center justify-center">
@@ -263,9 +264,9 @@ export default function ProfilePage() {
         <motion.div {...fadeUp(0.1)} className="mt-2">
           {/* Section 1 */}
           <div className="border-t border-border/20">
-            <MenuItem icon={<ShoppingBag className="h-[18px] w-[18px]" />} label="My listings" href="/app/listings" value={`${stats.listings}`} />
+            <MenuItem icon={<ShoppingBag className="h-[18px] w-[18px]" />} label={t.profile_my_listings} href="/app/listings" value={`${stats.listings}`} />
             <div className="border-t border-border/10" />
-            <MenuItem icon={<MessageCircle className="h-[18px] w-[18px]" />} label="My matches" href="/app/messages" value={`${stats.matches}`} />
+            <MenuItem icon={<MessageCircle className="h-[18px] w-[18px]" />} label={t.profile_my_matches} href="/app/messages" value={`${stats.matches}`} />
           </div>
 
           {/* Spacer */}
@@ -273,9 +274,9 @@ export default function ProfilePage() {
 
           {/* Section 2 */}
           <div className="border-t border-border/20">
-            <MenuItem icon={<Edit className="h-[18px] w-[18px]" />}       label="Edit profile"  href="/app/profile/edit" />
+            <MenuItem icon={<Edit className="h-[18px] w-[18px]" />}       label={t.profile_edit_profile}  href="/app/profile/edit" />
             <div className="border-t border-border/10" />
-            <MenuItem icon={<Settings className="h-[18px] w-[18px]" />}   label="Settings"      href="/app/profile/edit" />
+            <MenuItem icon={<Settings className="h-[18px] w-[18px]" />}   label={t.profile_settings}      href="/app/profile/edit" />
           </div>
 
           {/* Spacer */}
@@ -296,7 +297,7 @@ export default function ProfilePage() {
                 )}
               </span>
               <span className="flex-1 text-[14px] font-medium text-foreground">
-                {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+                {theme === 'dark' ? t.profile_dark_mode : t.profile_light_mode}
               </span>
               <button
                 type="button"
@@ -309,7 +310,7 @@ export default function ProfilePage() {
             <div className="border-t border-border/10" />
             <div className="flex items-center gap-4 px-6 py-4">
               <span className="text-muted-foreground/50 text-base leading-none">🌐</span>
-              <span className="flex-1 text-[14px] font-medium text-foreground">Language</span>
+              <span className="flex-1 text-[14px] font-medium text-foreground">{t.profile_language}</span>
               <select
                 value={locale}
                 onChange={e => setLocale(e.target.value)}
@@ -340,11 +341,11 @@ export default function ProfilePage() {
 
           {/* Section 3 */}
           <div className="border-t border-border/20">
-            <MenuItem icon={<HelpCircle className="h-[18px] w-[18px]" />} label="Help centre" />
+            <MenuItem icon={<HelpCircle className="h-[18px] w-[18px]" />} label={t.profile_help} />
             <div className="border-t border-border/10" />
             <MenuItem
               icon={<LogOut className="h-[18px] w-[18px]" />}
-              label="Log out"
+              label={t.profile_logout}
               onClick={handleSignOut}
               destructive
             />
