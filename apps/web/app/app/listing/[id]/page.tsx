@@ -7,6 +7,7 @@ import { supabase } from '../../../../lib/supabase';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { ArrowLeft, MapPin, MessageCircle, Heart, Share2, ArrowLeftRight } from 'lucide-react';
+import { formatSizeLabel } from '../../../../lib/sizeConversion';
 
 interface Listing {
   id: string;
@@ -205,7 +206,7 @@ export default function ListingDetailPage({ params }: PageProps) {
               {listing.shoe_brand} {listing.shoe_model}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Size US {listing.size} · {sideLabel} foot
+              {formatSizeLabel(String(listing.size), 'UK')} · {sideLabel} foot
             </p>
           </div>
           <p className="text-3xl font-bold text-foreground whitespace-nowrap">
