@@ -11,7 +11,6 @@ interface Conversation {
   otherUserAvatar: string | null;
   lastMessage: string;
   lastMessageTime: string;
-  isOnline: boolean;
 }
 
 export default function MessagesPage() {
@@ -28,33 +27,70 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      const { data } = await supabase
+      // 1. Load matches
+      const { data: matches } = await supabase
         .from('matches')
-        .select(`
-          id, created_at, user_id_1, user_id_2,
-          profile1:user_id_1(name, avatar_url),
-          profile2:user_id_2(name, avatar_url),
-          messages(content, created_at, sender_id)
-        `)
+        .select('id, created_at, user_id_1, user_id_2')
         .or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`)
         .order('created_at', { ascending: false });
 
-      const mapped: Conversation[] = (data ?? []).map((r: Record<string, unknown>) => {
-        const isUser1   = r.user_id_1 === userId;
-        const otherProf = (isUser1 ? r.profile2 : r.profile1) as Record<string, string> | null;
-        const msgs      = (r.messages as { content: string; created_at: string; sender_id: string }[] | null) ?? [];
-        const latest    = msgs.sort((a, b) => a.created_at > b.created_at ? -1 : 1)[0];
+      if (!matches || matches.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      const rawMatches = matches as { id: string; created_at: string; user_id_1: string; user_id_2: string }[];
+
+      // 2. Collect other user IDs and load profiles separately
+      const otherIds = [...new Set(rawMatches.map(m => m.user_id_1 === userId ? m.user_id_2 : m.user_id_1))];
+      const profileMap: Record<string, { name: string; avatar_url: string | null }> = {};
+      if (otherIds.length) {
+        const { data: profiles } = await supabase
+          .from('users')
+          .select('id, name, avatar_url')
+          .in('id', otherIds);
+        (profiles ?? []).forEach((p: Record<string, unknown>) => {
+          profileMap[p.id as string] = {
+            name:       (p.name as string) ?? 'User',
+            avatar_url: (p.avatar_url as string | null) ?? null,
+          };
+        });
+      }
+
+      // 3. Load latest message per match
+      const matchIds = rawMatches.map(m => m.id);
+      const latestMsg: Record<string, { content: string; created_at: string }> = {};
+      if (matchIds.length) {
+        const { data: allMessages } = await supabase
+          .from('messages')
+          .select('match_id, content, created_at')
+          .in('match_id', matchIds)
+          .order('created_at', { ascending: false });
+        (allMessages ?? []).forEach((m: Record<string, unknown>) => {
+          const mid = m.match_id as string;
+          if (!latestMsg[mid]) {
+            latestMsg[mid] = { content: m.content as string, created_at: m.created_at as string };
+          }
+        });
+      }
+
+      // 4. Assemble conversations
+      const mapped: Conversation[] = rawMatches.map(m => {
+        const otherId  = m.user_id_1 === userId ? m.user_id_2 : m.user_id_1;
+        const prof     = profileMap[otherId];
+        const latest   = latestMsg[m.id];
         return {
-          id:               r.id as string,
-          otherUserName:    otherProf?.name ?? 'User',
-          otherUserAvatar:  otherProf?.avatar_url ?? null,
-          lastMessage:      latest?.content ?? '',
-          lastMessageTime:  latest?.created_at
-            ? new Date(latest.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-            : new Date(r.created_at as string).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-          isOnline: true,
+          id:              m.id,
+          otherUserName:   prof?.name ?? 'User',
+          otherUserAvatar: prof?.avatar_url ?? null,
+          lastMessage:     latest?.content ?? '',
+          lastMessageTime: (latest?.created_at ?? m.created_at)
+            ? new Date(latest?.created_at ?? m.created_at)
+                .toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+            : '',
         };
       });
+
       setConversations(mapped);
       setLoading(false);
     })();
@@ -69,7 +105,7 @@ export default function MessagesPage() {
       <div className="max-w-lg mx-auto">
         {loading ? (
           <>
-            {[0,1,2,3,4].map(i => (
+            {[0, 1, 2, 3, 4].map(i => (
               <div key={i} className="flex items-center gap-3 px-4 py-4 border-b border-border/30">
                 <div className="w-12 h-12 rounded-xl bg-muted animate-pulse flex-shrink-0" />
                 <div className="flex-1">
@@ -86,16 +122,13 @@ export default function MessagesPage() {
               href={`/app/messages/${conv.id}`}
               className={`flex items-center gap-3 px-4 py-4 border-b border-border/30 hover:bg-muted/30 transition-colors opacity-0 animate-fade-in stagger-${Math.min(i + 1, 6)}`}
             >
-              <div className="relative flex-shrink-0">
+              <div className="flex-shrink-0">
                 {conv.otherUserAvatar ? (
                   <img src={conv.otherUserAvatar} alt="" className="w-12 h-12 rounded-xl object-cover" />
                 ) : (
                   <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center text-base font-bold text-accent">
                     {conv.otherUserName[0]}
                   </div>
-                )}
-                {conv.isOnline && (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-match-green border-2 border-background" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
@@ -112,10 +145,12 @@ export default function MessagesPage() {
         ) : (
           <div className="text-center py-20 px-4 animate-fade-in">
             <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-              <MessageCircle className="h-7 w-7 text-muted-foreground" />
+              <MessageCircle className="h-7 w-7 text-muted-foreground/40" />
             </div>
             <p className="font-semibold text-foreground mb-1">No messages yet</p>
-            <p className="text-sm text-muted-foreground">Browse listings and message a seller to get started.</p>
+            <p className="text-sm text-muted-foreground">
+              Match with someone on the discover tab to start chatting.
+            </p>
           </div>
         )}
       </div>

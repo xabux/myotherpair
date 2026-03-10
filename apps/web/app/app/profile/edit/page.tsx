@@ -39,21 +39,21 @@ export default function EditProfilePage() {
       setUserId(session.user.id);
       const { data } = await supabase
         .from('users')
-        .select('name, location, foot_size_left, foot_size_right, is_amputee, avatar_url')
+        .select('name, location, foot_size_left, foot_size_right, is_amputee, avatar_url, bio')
         .eq('id', session.user.id)
         .single();
       if (data) {
         const d = data as {
           name?: string; location?: string;
           foot_size_left?: number | null; foot_size_right?: number | null;
-          is_amputee?: boolean; avatar_url?: string | null;
+          is_amputee?: boolean; avatar_url?: string | null; bio?: string | null;
         };
         setForm({
           name:      d.name      ?? '',
           location:  d.location  ?? '',
           leftSize:  d.foot_size_left  != null ? String(d.foot_size_left)  : '',
           rightSize: d.foot_size_right != null ? String(d.foot_size_right) : '',
-          bio:       '',
+          bio:       d.bio ?? '',
           isAmputee: d.is_amputee ?? false,
         });
         if (d.avatar_url) setCurrentAvatar(d.avatar_url);
@@ -98,6 +98,7 @@ export default function EditProfilePage() {
         foot_size_left:  form.leftSize  ? parseFloat(form.leftSize)  : null,
         foot_size_right: form.rightSize ? parseFloat(form.rightSize) : null,
         is_amputee:      form.isAmputee,
+        bio:             form.bio.trim() || null,
         ...(avatar_url ? { avatar_url } : {}),
       }).eq('id', userId);
 

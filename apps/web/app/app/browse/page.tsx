@@ -11,6 +11,7 @@ import {
   getSizes,
   toUKCanonical,
   formatSizeLabel,
+  getEquivalents,
   detectSizeSystem,
 } from '../../../lib/sizeConversion';
 
@@ -63,24 +64,13 @@ function ListingCard({
   const sideVariant = listing.foot_side === 'L' ? 'left' as const : listing.foot_side === 'R' ? 'right' as const : 'default' as const;
   const sideLabel   = listing.foot_side === 'L' ? 'Left' : listing.foot_side === 'R' ? 'Right' : 'Either';
 
-  // Display size in user's preferred system
+  // Show size in user's preferred system using getEquivalents
   const ukStr = String(listing.size);
-  const sizeDisplay = formatSizeLabel(ukStr, 'UK')
-    .replace(/^UK /, `${sizeSystem} `)
-    // fallback if not in conversion table: just show UK
-    || `UK ${listing.size}`;
-
-  // If user's system isn't UK, show primary in their system
+  const eq = getEquivalents(ukStr, 'UK');
   let primarySize = `UK ${listing.size}`;
-  if (sizeSystem !== 'UK') {
-    // Find equivalent
-    const sizes = getSizes('UK');
-    if (sizes.includes(ukStr)) {
-      const label = formatSizeLabel(ukStr, 'UK');
-      // label is like "UK 7  (US 8 · EU 41)"
-      const match = label.match(new RegExp(`${sizeSystem} (\\d+\\.?\\d*)`));
-      if (match) primarySize = `${sizeSystem} ${match[1]}`;
-    }
+  if (eq) {
+    const key = sizeSystem.toLowerCase() as 'uk' | 'us' | 'eu';
+    primarySize = `${sizeSystem} ${eq[key]}`;
   }
 
   return (

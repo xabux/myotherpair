@@ -6,7 +6,8 @@ import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import type { PanInfo } from 'framer-motion';
 import { Badge } from '../components/ui/Badge';
-import { Heart, X, Sparkles, MapPin } from 'lucide-react';
+import { Heart, X, MapPin } from 'lucide-react';
+import { formatSizeLabel } from '../../lib/sizeConversion';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -98,26 +99,46 @@ export default function DiscoverPage() {
           .eq('swiper_id', userId);
         const swipedIds = (swiped ?? []).map((s: { listing_id: string }) => s.listing_id);
 
-        const query = supabase
+        let query = supabase
           .from('listings')
-          .select('id, shoe_brand, shoe_model, size, foot_side, condition, price, photos, user_id, users!listings_user_id_fkey(name, location, avatar_url)')
+          .select('id, shoe_brand, shoe_model, size, foot_side, condition, price, photos, user_id')
           .eq('status', 'active')
-          .neq('user_id', userId);
+          .neq('user_id', userId)
+          .limit(30);
 
-        const { data, error } = swipedIds.length
-          ? await query.not('id', 'in', `(${swipedIds.join(',')})`)
-          : await query;
+        if (swipedIds.length) {
+          query = query.not('id', 'in', `(${swipedIds.join(',')})`) as typeof query;
+        }
 
+        const { data, error } = await query;
         if (error) throw error;
 
-        const mapped: Listing[] = (data ?? []).map((r: Record<string, unknown>, i: number) => {
-          const profile = r.users as Record<string, string> | null;
-          const photos = Array.isArray(r.photos) ? (r.photos as string[]) : [];
+        // Load seller profiles separately (avoids FK constraint name dependency)
+        const rawListings = (data ?? []) as Record<string, unknown>[];
+        const sellerIds = [...new Set(rawListings.map(r => r.user_id as string))];
+        const profileMap: Record<string, { name: string; location: string; avatar_url: string | null }> = {};
+        if (sellerIds.length) {
+          const { data: profiles } = await supabase
+            .from('users')
+            .select('id, name, location, avatar_url')
+            .in('id', sellerIds);
+          (profiles ?? []).forEach((p: Record<string, unknown>) => {
+            profileMap[p.id as string] = {
+              name:       p.name       as string ?? 'User',
+              location:   p.location   as string ?? '',
+              avatar_url: p.avatar_url as string | null ?? null,
+            };
+          });
+        }
+
+        const mapped: Listing[] = rawListings.map((r, i) => {
+          const photos  = Array.isArray(r.photos) ? (r.photos as string[]) : [];
+          const profile = profileMap[r.user_id as string];
           return {
             id:              r.id as string,
             shoe_brand:      r.shoe_brand as string,
             shoe_model:      r.shoe_model as string,
-            size:            r.size as string,
+            size:            String(r.size),
             foot_side:       r.foot_side as string,
             condition:       r.condition as Condition,
             price:           r.price as number | null,
@@ -125,7 +146,7 @@ export default function DiscoverPage() {
             side:            fromDbFoot(r.foot_side as string),
             brand:           r.shoe_brand as string,
             model:           r.shoe_model as string,
-            category:        `${CARD_COLORS[i % CARD_COLORS.length]}`, // placeholder
+            category:        CARD_COLORS[i % CARD_COLORS.length],
             photo:           photos[0] ?? null,
             userId:          r.user_id as string,
             sellerName:      profile?.name ?? 'User',
@@ -363,7 +384,7 @@ export default function DiscoverPage() {
                         </div>
 
                         <div className="flex items-center gap-2 text-white/50 text-xs mb-2.5">
-                          <span>US {currentListing.size}</span>
+                          <span>{formatSizeLabel(currentListing.size, 'UK')}</span>
                           <span className="w-0.5 h-0.5 rounded-full bg-white/30" />
                           <span>{currentListing.side} foot</span>
                         </div>

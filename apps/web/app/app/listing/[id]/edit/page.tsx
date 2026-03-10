@@ -168,7 +168,7 @@ export default function EditListingPage() {
       const { error: updateErr } = await supabase
         .from('listings')
         .update(patch)
-        .eq('id', params!.id);
+        .eq('id', params?.id ?? '');
 
       if (updateErr) throw updateErr;
       router.push('/app/listings');

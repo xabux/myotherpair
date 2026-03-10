@@ -2,10 +2,9 @@
 
 export default function AuthLoader() {
   return (
-    <div className="min-h-screen bg-dark-900 flex items-center justify-center">
-      <span className="text-2xl font-extrabold tracking-tight leading-none animate-pulse">
-        <span className="text-white">myother</span>
-        <span className="text-[#e63946]">pair</span>
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <span className="font-display text-2xl font-bold tracking-tight leading-none animate-pulse text-foreground">
+        myother<span className="text-accent">pair</span>
       </span>
     </div>
   );

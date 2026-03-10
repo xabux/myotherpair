@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 import { motion } from 'framer-motion';
 import {
-  MapPin, Edit, Search, Check, X, Heart,
-  ChevronRight, ShoppingBag, Star, Settings,
-  HelpCircle, LogOut, PlusCircle,
+  MapPin, Edit, Search, Check, X,
+  ChevronRight, ShoppingBag, Settings,
+  HelpCircle, LogOut, PlusCircle, MessageCircle,
 } from 'lucide-react';
+import { formatSizeLabel } from '../../../lib/sizeConversion';
 
 interface ProfileData {
   name?: string;
@@ -19,6 +20,7 @@ interface ProfileData {
   foot_size_left?: number | null;
   foot_size_right?: number | null;
   is_amputee?: boolean;
+  bio?: string | null;
   created_at?: string;
 }
 
@@ -90,8 +92,9 @@ export default function ProfilePage() {
       if (profileRes.data) {
         const d = profileRes.data as ProfileData;
         setProfile(d);
-        setSearchStatus(d.location ? `Looking for shoes in ${d.location}` : 'Looking for the perfect match');
-        setStatusDraft(d.location ? `Looking for shoes in ${d.location}` : 'Looking for the perfect match');
+        const defaultStatus = d.bio || (d.location ? `Looking for shoes in ${d.location}` : 'Looking for the perfect match');
+        setSearchStatus(defaultStatus);
+        setStatusDraft(defaultStatus);
       }
       setStats({
         listings: listingsRes.count ?? 0,
@@ -109,8 +112,8 @@ export default function ProfilePage() {
 
   const name       = profile.name ?? '';
   const initials   = name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
-  const leftSize   = profile.foot_size_left  ? `US ${profile.foot_size_left}`  : null;
-  const rightSize  = profile.foot_size_right ? `US ${profile.foot_size_right}` : null;
+  const leftSize   = profile.foot_size_left  != null ? formatSizeLabel(String(profile.foot_size_left),  'UK') : null;
+  const rightSize  = profile.foot_size_right != null ? formatSizeLabel(String(profile.foot_size_right), 'UK') : null;
 
   if (loading) {
     return (
@@ -178,9 +181,9 @@ export default function ProfilePage() {
             {/* Quick stats */}
             <div className="flex items-center gap-6 mt-4 pt-4 border-t border-border/20">
               {[
-                { label: 'Listings',  value: stats.listings },
-                { label: 'Matches',   value: stats.matches  },
-                { label: 'L: ' + (leftSize ?? '—'), value: 'R: ' + (rightSize ?? '—') },
+                { label: 'Listings', value: stats.listings },
+                { label: 'Matches',  value: stats.matches  },
+                { label: 'Sizes',    value: leftSize && rightSize ? `L · R` : leftSize ? `L` : rightSize ? `R` : '—' },
               ].map((stat, i) => (
                 <div key={i} className="text-center flex-1">
                   <p className="text-[13px] font-bold text-foreground leading-none">{stat.value}</p>
@@ -207,7 +210,13 @@ export default function ProfilePage() {
                       placeholder="e.g. Right Nike Dunk, UK 8"
                       autoFocus
                     />
-                    <button onClick={() => { setSearchStatus(statusDraft); setEditingStatus(false); }} className="text-accent">
+                    <button onClick={async () => {
+                      setSearchStatus(statusDraft);
+                      setEditingStatus(false);
+                      if (userId) {
+                        await supabase.from('users').update({ bio: statusDraft }).eq('id', userId);
+                      }
+                    }} className="text-accent">
                       <Check className="h-4 w-4" />
                     </button>
                     <button onClick={() => { setStatusDraft(searchStatus); setEditingStatus(false); }} className="text-muted-foreground/40">
@@ -250,9 +259,9 @@ export default function ProfilePage() {
         <motion.div {...fadeUp(0.1)} className="mt-2">
           {/* Section 1 */}
           <div className="border-t border-border/20">
-            <MenuItem icon={<Heart className="h-[18px] w-[18px]" />}     label="My listings"  href="/app/listings" value={`${stats.listings}`} />
+            <MenuItem icon={<ShoppingBag className="h-[18px] w-[18px]" />} label="My listings" href="/app/listings" value={`${stats.listings}`} />
             <div className="border-t border-border/10" />
-            <MenuItem icon={<ShoppingBag className="h-[18px] w-[18px]" />} label="My matches"  href="/app/messages" value={`${stats.matches}`} />
+            <MenuItem icon={<MessageCircle className="h-[18px] w-[18px]" />} label="My matches" href="/app/messages" value={`${stats.matches}`} />
           </div>
 
           {/* Spacer */}

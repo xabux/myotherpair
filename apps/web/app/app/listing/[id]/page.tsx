@@ -148,7 +148,7 @@ export default function ListingDetailPage({ params }: PageProps) {
   }
 
   const sideLabel   = listing.foot_side === 'L' ? 'Left' : listing.foot_side === 'R' ? 'Right' : 'Either';
-  const sideVariant = listing.foot_side === 'L' ? 'left' as const : 'right' as const;
+  const sideVariant = listing.foot_side === 'L' ? 'left' as const : listing.foot_side === 'R' ? 'right' as const : 'default' as const;
   const messageHref = matchId
     ? `/app/messages/${matchId}`
     : `/app/messages`;
