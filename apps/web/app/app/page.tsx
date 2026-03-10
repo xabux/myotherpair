@@ -45,6 +45,7 @@ interface Shoe {
   location: string;
   color: string; // gradient for placeholder
   listingId?: string; // DB UUID when loaded from Supabase
+  photos?: string[];
 }
 
 interface Match {
@@ -234,9 +235,10 @@ function DiscoverTab({ userId }: { userId?: string }) {
   const [drag,       setDrag]       = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [startPos,   setStartPos]   = useState({ x: 0, y: 0 });
-  const [loading,    setLoading]    = useState(true);
-  const [fetchError, setFetchError] = useState(false);
-  const [retryKey,   setRetryKey]   = useState(0);
+  const [loading,           setLoading]           = useState(true);
+  const [fetchError,        setFetchError]         = useState(false);
+  const [retryKey,          setRetryKey]           = useState(0);
+  const [matchCelebration,  setMatchCelebration]   = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Load unseen listings from Supabase
@@ -280,6 +282,7 @@ function DiscoverTab({ userId }: { userId?: string }) {
             user:      profile?.name ?? 'User',
             location:  profile?.location ?? '',
             color:     CARD_COLORS[i % CARD_COLORS.length],
+            photos:    Array.isArray(r.photos) ? (r.photos as string[]) : [],
           };
         });
         setDeck(mapped);
@@ -342,16 +345,19 @@ function DiscoverTab({ userId }: { userId?: string }) {
                 .in('listing_id', myIds)
                 .limit(1);
               if (theirSwipe && theirSwipe.length > 0) {
-                await supabase.from('matches').insert({
+                const { error: matchErr } = await supabase.from('matches').insert({
                   listing_id_1: (theirSwipe[0] as { listing_id: string }).listing_id,
                   listing_id_2: topCard.listingId,
                   user_id_1:    userId,
                   user_id_2:    ownerId,
                   status:       'pending',
                 });
+                if (!matchErr) {
+                  setMatchCelebration(true);
+                  setTimeout(() => setMatchCelebration(false), 2800);
+                }
               }
             }
-            void reverseSwipe; // suppress unused warning
           }
         }
       })();
@@ -456,7 +462,16 @@ function DiscoverTab({ userId }: { userId?: string }) {
   );
 
   return (
-    <div className="h-full flex flex-col items-center justify-between py-4 px-4 overflow-hidden">
+    <div className="h-full flex flex-col items-center justify-between py-4 px-4 overflow-hidden relative">
+      {/* It's a match! overlay */}
+      {matchCelebration && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center text-center px-8"
+          style={{ background: 'rgba(0,0,0,0.85)', animation: 'pop-in 0.4s cubic-bezier(0.175,0.885,0.32,1.275)' }}>
+          <div className="text-6xl mb-5" style={{ animation: 'pop-in 0.5s cubic-bezier(0.175,0.885,0.32,1.275) 0.1s both' }}>🎉</div>
+          <h3 className="text-4xl font-extrabold text-white mb-3 font-syne" style={{ animation: 'pop-in 0.5s cubic-bezier(0.175,0.885,0.32,1.275) 0.2s both' }}>It's a match!</h3>
+          <p className="text-white/50 text-sm font-dmsans" style={{ animation: 'pop-in 0.5s cubic-bezier(0.175,0.885,0.32,1.275) 0.3s both' }}>Head to Messages to say hello 👋</p>
+        </div>
+      )}
       {/* Header */}
       <div className="w-full max-w-sm flex items-center justify-between mb-2">
         <h2 className="text-lg font-bold text-white font-syne">Discover</h2>
@@ -497,11 +512,16 @@ function DiscoverTab({ userId }: { userId?: string }) {
             touchAction:           'none',
           }}
         >
-          {/* Shoe image placeholder */}
-          <div className={`h-64 bg-gradient-to-br ${cards[0].color} relative flex items-end p-5`}>
-            <div className="absolute inset-0 flex items-center justify-center opacity-20">
-              <span className="text-[120px]">👟</span>
-            </div>
+          {/* Shoe image */}
+          <div className={`h-64 relative flex items-end p-5 ${cards[0].photos?.[0] ? '' : `bg-gradient-to-br ${cards[0].color}`}`}>
+            {cards[0].photos?.[0] ? (
+              <img src={cards[0].photos[0]} alt={`${cards[0].brand} ${cards[0].model}`}
+                className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center opacity-20">
+                <span className="text-[120px]">👟</span>
+              </div>
+            )}
 
             {/* MATCH stamp — fades in proportional to rightward drag */}
             <div className="absolute top-6 left-6 rotate-[-20deg]"
@@ -769,6 +789,12 @@ function MessagesTab({ initialId, userId }: { initialId?: string; userId?: strin
           ...prev,
           [activeId]: [...(prev[activeId] ?? []), newMessage],
         }));
+        // Update last message preview in conversation list
+        setDbMatches(prev => prev.map(match =>
+          match.id === activeId
+            ? { ...match, lastMsg: m.content }
+            : match,
+        ));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -939,12 +965,13 @@ function ListingsTab({ userId }: { userId?: string }) {
           brand:     r.shoe_brand as string,
           model:     r.shoe_model as string,
           size:      `US ${r.size}`,
-          foot:      ((r.foot_side as string) === 'left' ? 'Left' : 'Right') as Foot,
+          foot:      fromDbFoot(r.foot_side as string),
           condition: r.condition as Condition,
           price:     r.price ? `$${r.price}` : '$—',
           user:      'Me',
           location:  '',
           color:     CARD_COLORS[i % CARD_COLORS.length],
+          photos:    Array.isArray(r.photos) ? (r.photos as string[]) : [],
         }));
         setMyListings(mapped);
       } finally {
@@ -1155,8 +1182,13 @@ function ListingsTab({ userId }: { userId?: string }) {
         {myListings.map(listing => (
           <div key={listing.id} className="rounded-2xl overflow-hidden flex flex-col"
             style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-            <div className={`h-28 bg-gradient-to-br ${listing.color} flex items-center justify-center relative`}>
-              <span className="text-4xl opacity-30">👟</span>
+            <div className={`h-28 relative flex items-center justify-center ${listing.photos?.[0] ? '' : `bg-gradient-to-br ${listing.color}`}`}>
+              {listing.photos?.[0] ? (
+                <img src={listing.photos[0]} alt={`${listing.brand} ${listing.model}`}
+                  className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <span className="text-4xl opacity-30">👟</span>
+              )}
               <span className="absolute top-2 right-2 text-[10px] font-bold text-white/60 bg-black/30 px-2 py-0.5 rounded-full">
                 {CONDITION_LABELS[listing.condition]}
               </span>
@@ -1201,7 +1233,11 @@ interface ProfileData {
   is_amputee?: boolean; created_at?: string;
 }
 
-function ProfileTab({ userId }: { userId?: string }) {
+function ProfileTab({ userId, autoOpenEdit, onAutoOpenEditDone }: {
+  userId?: string;
+  autoOpenEdit?: boolean;
+  onAutoOpenEditDone?: () => void;
+}) {
   const router  = useRouter();
   const [profile,  setProfile]  = useState<ProfileData>({});
   const [loading,  setLoading]  = useState(true);
@@ -1236,6 +1272,16 @@ function ProfileTab({ userId }: { userId?: string }) {
     setLoading(true);
     loadProfile(userId).finally(() => setLoading(false));
   }, [userId]);
+
+  // Auto-open edit form for OAuth users with incomplete profile
+  const autoOpenFired = useRef(false);
+  useEffect(() => {
+    if (autoOpenEdit && !loading && !autoOpenFired.current) {
+      autoOpenFired.current = true;
+      openEdit();
+      onAutoOpenEditDone?.();
+    }
+  }, [autoOpenEdit, loading]);
 
   function openEdit() {
     setEditForm({
@@ -1486,9 +1532,11 @@ export default function AppPage() {
   const [tab,   setTab]   = useState<Tab>('discover');
   const [msgId, setMsgId] = useState<string | undefined>(undefined);
   const [user,  setUser]  = useState<User | null>(null);
-  const [userEmail,    setUserEmail]    = useState('');
-  const [userInitials, setUserInitials] = useState('A');
+  const [userEmail,      setUserEmail]      = useState('');
+  const [userInitials,   setUserInitials]   = useState('A');
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
+  const [autoOpenEdit,      setAutoOpenEdit]      = useState(false);
 
   // Session guard + auth state listener
   useEffect(() => {
@@ -1517,15 +1565,21 @@ export default function AppPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  // Load profile initials for sidebar chip
+  // Load profile initials + check completeness for sidebar chip
   useEffect(() => {
     if (!user?.id) return;
-    supabase.from('users').select('name').eq('id', user.id).single()
+    supabase.from('users')
+      .select('name, foot_size_left, foot_size_right, is_amputee')
+      .eq('id', user.id).single()
       .then(({ data }) => {
         if (data) {
-          const d = data as { name?: string };
+          const d = data as { name?: string; foot_size_left?: number | null; foot_size_right?: number | null; is_amputee?: boolean };
           const i = (d.name ?? '').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
           if (i) setUserInitials(i);
+          // Prompt OAuth users who haven't set shoe sizes
+          if (!d.is_amputee && !d.foot_size_left && !d.foot_size_right) {
+            setProfileIncomplete(true);
+          }
         }
       });
   }, [user?.id]);
@@ -1589,13 +1643,38 @@ export default function AppPage() {
 
       {/* ═══ Main content ═══════════════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        {/* Incomplete-profile banner */}
+        {profileIncomplete && (
+          <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 border-b"
+            style={{ background: `${ACCENT}18`, borderColor: `${ACCENT}35` }}>
+            <p className="text-xs text-white/70 font-dmsans">Add your shoe sizes to start matching!</p>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => {
+                  setProfileIncomplete(false);
+                  setAutoOpenEdit(true);
+                  setTab('profile');
+                }}
+                className="text-xs font-bold text-white px-3 py-1.5 rounded-xl transition-all active:scale-95"
+                style={{ background: ACCENT }}>
+                Set up sizes
+              </button>
+              <button onClick={() => setProfileIncomplete(false)}
+                className="text-white/30 hover:text-white/60 transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
         {/* Tab content */}
         <div className="flex-1 min-h-0 overflow-hidden">
           {tab === 'discover'  && <DiscoverTab userId={userId} />}
           {tab === 'matches'   && <MatchesTab  onMessage={goToMessage} userId={userId} />}
           {tab === 'messages'  && <MessagesTab initialId={msgId} userId={userId} />}
           {tab === 'listings'  && <ListingsTab userId={userId} />}
-          {tab === 'profile'   && <ProfileTab  userId={userId} />}
+          {tab === 'profile'   && <ProfileTab  userId={userId} autoOpenEdit={autoOpenEdit} onAutoOpenEditDone={() => setAutoOpenEdit(false)} />}
         </div>
 
         {/* ═══ Mobile bottom nav ═════════════════════════════════════════════ */}
