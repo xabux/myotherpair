@@ -11,6 +11,8 @@ import {
   HelpCircle, LogOut, PlusCircle, MessageCircle,
 } from 'lucide-react';
 import { formatSizeLabel } from '../../../lib/sizeConversion';
+import { useTheme } from '../../../lib/theme';
+import { useLocale, LOCALES } from '../../../lib/locale';
 
 interface ProfileData {
   name?: string;
@@ -66,6 +68,8 @@ function MenuItem({ icon, label, href, value, onClick, destructive }: MenuItemPr
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { theme, toggle: toggleTheme } = useTheme();
+  const { locale, setLocale } = useLocale();
   const [userId,        setUserId]        = useState<string | null>(null);
   const [profile,       setProfile]       = useState<ProfileData>({});
   const [stats,         setStats]         = useState<Stats>({ listings: 0, matches: 0, trades: 0 });
@@ -272,6 +276,63 @@ export default function ProfilePage() {
             <MenuItem icon={<Edit className="h-[18px] w-[18px]" />}       label="Edit profile"  href="/app/profile/edit" />
             <div className="border-t border-border/10" />
             <MenuItem icon={<Settings className="h-[18px] w-[18px]" />}   label="Settings"      href="/app/profile/edit" />
+          </div>
+
+          {/* Spacer */}
+          <div className="h-2 bg-secondary/30" />
+
+          {/* Preferences */}
+          <div className="border-t border-border/20">
+            <div className="flex items-center gap-4 px-6 py-4">
+              <span className="text-muted-foreground/50">
+                {theme === 'dark' ? (
+                  <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                  </svg>
+                ) : (
+                  <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                  </svg>
+                )}
+              </span>
+              <span className="flex-1 text-[14px] font-medium text-foreground">
+                {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+              </span>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors ${theme === 'dark' ? 'bg-accent' : 'bg-muted'}`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${theme === 'dark' ? 'translate-x-4' : 'translate-x-0'}`} />
+              </button>
+            </div>
+            <div className="border-t border-border/10" />
+            <div className="flex items-center gap-4 px-6 py-4">
+              <span className="text-muted-foreground/50 text-base leading-none">🌐</span>
+              <span className="flex-1 text-[14px] font-medium text-foreground">Language</span>
+              <select
+                value={locale}
+                onChange={e => setLocale(e.target.value)}
+                className="text-[13px] text-foreground bg-card border border-border/40 rounded-lg px-2 py-1 outline-none focus:border-accent/50 transition-colors appearance-none cursor-pointer pr-6"
+                style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23888\' stroke-width=\'2\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
+              >
+                <optgroup label="Americas">
+                  {LOCALES.filter(l => l.group === 'US').map(l => (
+                    <option key={l.code} value={l.code}>{l.flag} {l.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="UK & Oceania">
+                  {LOCALES.filter(l => l.group === 'UK').map(l => (
+                    <option key={l.code} value={l.code}>{l.flag} {l.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Europe">
+                  {LOCALES.filter(l => l.group === 'EU').map(l => (
+                    <option key={l.code} value={l.code}>{l.flag} {l.label}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
           </div>
 
           {/* Spacer */}

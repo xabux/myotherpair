@@ -7,6 +7,8 @@ import {
   ArrowRight, Search, ArrowLeftRight, MessageCircle,
   Shield, Zap, Heart, Minus,
 } from 'lucide-react';
+import ThemeToggle from './components/ThemeToggle';
+import LanguageSelector from './components/LanguageSelector';
 
 const stories = [
   {
@@ -72,9 +74,13 @@ export default function LandingPage() {
           myotherpair
         </h1>
         <nav className="relative hidden sm:flex items-center gap-8 text-[13px] font-medium tracking-[0.12em] uppercase text-muted-foreground" />
-        <a href="/login" className="relative text-[13px] font-medium tracking-[0.1em] uppercase text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors duration-500 px-3 py-1.5">
-          Log in
-        </a>
+        <div className="relative flex items-center gap-2">
+          <LanguageSelector variant="compact" />
+          <ThemeToggle />
+          <a href="/login" className="text-[13px] font-medium tracking-[0.1em] uppercase text-muted-foreground hover:text-foreground transition-colors duration-500 px-3 py-1.5">
+            Log in
+          </a>
+        </div>
       </header>
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
