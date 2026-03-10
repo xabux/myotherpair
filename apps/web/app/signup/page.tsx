@@ -2,8 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import ThemeToggle from '../components/ThemeToggle';
-import AuthLoader  from '../components/AuthLoader';
 import { supabase } from '../../lib/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -161,13 +159,13 @@ function validate(step: number, f: FormState): Errors {
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
 const field = (hasErr?: boolean) =>
-  `w-full bg-white/5 border ${hasErr
-    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-    : 'border-white/10 focus:border-brand-500 focus:ring-brand-500'
-  } text-white placeholder-white/25 text-sm px-4 py-3.5 rounded-2xl outline-none focus:ring-1 transition-colors`;
+  `w-full bg-background border ${hasErr
+    ? 'border-destructive focus:border-destructive focus:ring-destructive/30'
+    : 'border-input focus:border-accent focus:ring-accent/30'
+  } text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:ring-1 transition-colors`;
 
-const lbl = 'block text-xs font-semibold text-white/50 mb-2';
-const errMsg = 'text-xs text-red-400 mt-1.5';
+const lbl = 'block text-xs font-medium text-muted-foreground mb-1.5';
+const errMsg = 'text-xs text-destructive mt-1.5';
 
 // ─── EyeIcon ──────────────────────────────────────────────────────────────────
 
@@ -198,10 +196,9 @@ function SizeGrid({ sizes, selected, onSelect, error }: {
             <button key={size} type="button" onClick={() => onSelect(size)}
               className={`h-11 text-xs font-bold rounded-xl border transition-all ${
                 active
-                  ? 'border-brand-500 text-white'
-                  : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:border-white/30 hover:text-white'
+                  ? 'gradient-warm border-accent text-accent-foreground'
+                  : 'border-border bg-secondary/50 text-muted-foreground hover:bg-secondary hover:border-border hover:text-foreground'
               }`}
-              style={active ? { background: 'linear-gradient(to right,#fd267a,#ff6036)' } : {}}
             >
               {fmt(size)}
             </button>
@@ -221,8 +218,8 @@ function ConvBadge({ row }: { row: SizeConvRow }) {
     <div className="flex items-center gap-1.5 mt-2.5" style={{ animation: 'pop-in 0.2s ease-out' }}>
       {items.map((label, i) => (
         <span key={label} className="flex items-center gap-1.5">
-          <span className="text-[10px] px-2 py-0.5 bg-white/5 border border-white/10 rounded-full text-white/40 font-medium">{label}</span>
-          {i < 2 && <span className="text-white/20 text-[10px]">→</span>}
+          <span className="text-[10px] px-2 py-0.5 bg-secondary border border-border rounded-full text-muted-foreground font-medium">{label}</span>
+          {i < 2 && <span className="text-muted-foreground/40 text-[10px]">→</span>}
         </span>
       ))}
     </div>
@@ -253,39 +250,39 @@ function CountrySelect({ value, onChange, error }: {
       <button
         type="button"
         onClick={() => { setOpen(v => !v); setSearch(''); }}
-        className={`w-full flex items-center justify-between bg-white/5 border ${
-          error ? 'border-red-500' : 'border-white/10'
-        } text-sm px-4 py-3.5 rounded-2xl outline-none transition-colors ${
-          value ? 'text-white' : 'text-white/25'
+        className={`w-full flex items-center justify-between bg-background border ${
+          error ? 'border-destructive' : 'border-input'
+        } text-sm px-4 py-3 rounded-xl outline-none transition-colors ${
+          value ? 'text-foreground' : 'text-muted-foreground'
         }`}
       >
         <span>{value || 'Select country…'}</span>
-        <svg className={`w-4 h-4 text-white/30 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        <svg className={`w-4 h-4 text-muted-foreground/50 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-dark-800 border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-50">
-          <div className="p-2 border-b border-white/5">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-2xl overflow-hidden shadow-elevated z-50">
+          <div className="p-2 border-b border-border">
             <input
               type="text" value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search…"
               autoFocus
-              className="w-full bg-white/5 border border-white/10 text-white text-sm px-3 py-2 rounded-xl outline-none placeholder-white/25"
+              className="w-full bg-background border border-input text-foreground text-sm px-3 py-2 rounded-xl outline-none placeholder-muted-foreground/50"
               onClick={e => e.stopPropagation()}
             />
           </div>
           <div className="max-h-52 overflow-y-auto">
             {filtered.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-white/30">No results</p>
+              <p className="px-4 py-3 text-sm text-muted-foreground">No results</p>
             ) : filtered.map(c => (
               <button key={c} type="button"
                 onClick={() => { onChange(c); setOpen(false); }}
                 className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                  c === value ? 'bg-brand-500/10 text-brand-400 font-semibold' : 'text-white/70 hover:bg-white/5 hover:text-white'
+                  c === value ? 'bg-accent/10 text-accent font-semibold' : 'text-foreground hover:bg-secondary'
                 }`}
               >
                 {c}
@@ -316,11 +313,10 @@ function SidebarSteps({ step }: { step: number }) {
             <div className="flex flex-col items-center">
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 border-2 transition-all duration-300 ${
-                  done    ? 'border-transparent text-white' :
-                  current ? 'border-brand-500 bg-transparent text-brand-500' :
-                            'border-white/15 text-white/25'
+                  done    ? 'gradient-warm border-transparent text-accent-foreground' :
+                  current ? 'border-accent bg-transparent text-accent' :
+                            'border-border text-muted-foreground/40'
                 }`}
-                style={done ? { background: 'linear-gradient(to right,#fd267a,#ff6036)' } : {}}
               >
                 {done ? (
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -329,17 +325,16 @@ function SidebarSteps({ step }: { step: number }) {
                 ) : i + 1}
               </div>
               {i < TOTAL_STEPS - 1 && (
-                <div className={`w-px flex-1 my-1.5 min-h-[36px] transition-colors duration-500 ${done ? '' : 'bg-white/10'}`}
-                  style={done ? { background: 'linear-gradient(to bottom,#fd267a,#ff6036)' } : {}} />
+                <div className={`w-px flex-1 my-1.5 min-h-[36px] transition-colors duration-500 ${done ? 'bg-accent' : 'bg-border'}`} />
               )}
             </div>
             {/* Text */}
             <div className={`pt-1 ${i < TOTAL_STEPS - 1 ? 'pb-10' : ''}`}>
-              <p className={`text-sm font-semibold leading-tight transition-colors ${
-                current ? 'text-white' : done ? 'text-white/50' : 'text-white/25'
+              <p className={`text-sm leading-tight transition-colors ${
+                current ? 'text-foreground font-semibold' : done ? 'text-muted-foreground' : 'text-muted-foreground/40'
               }`}>{label}</p>
               {current && (
-                <p className="text-xs text-white/35 mt-0.5">{STEP_SUBLABELS[i]}</p>
+                <p className="text-xs text-muted-foreground/60 mt-0.5">{STEP_SUBLABELS[i]}</p>
               )}
             </div>
           </div>
@@ -588,28 +583,41 @@ export default function SignUpPage() {
   };
 
   const segBtn = (active: boolean) =>
-    `px-4 py-2 text-xs font-bold rounded-xl transition-all ${active ? 'text-white' : 'text-white/40 hover:text-white/70'}`;
+    `px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+      active
+        ? 'bg-card shadow-card text-foreground font-semibold rounded-lg'
+        : 'text-muted-foreground hover:text-foreground rounded-lg'
+    }`;
 
   const chipCls = (active: boolean) =>
     `px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all cursor-pointer ${
-      active ? 'border-brand-500 text-white' : 'border-white/10 bg-white/5 text-white/50 hover:border-white/30'
+      active
+        ? 'border-accent bg-accent/10 text-accent'
+        : 'border-border bg-background text-muted-foreground hover:border-accent/50'
     }`;
 
-  if (checking) return <AuthLoader />;
+  if (checking) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex gap-1.5">
+        {[0,1,2].map(i => (
+          <div key={i} className="w-2 h-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+        ))}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="flex min-h-screen bg-dark-900">
+    <div className="flex min-h-screen bg-background">
 
       {/* ══ Sidebar ══════════════════════════════════════════════════════════ */}
-      <aside className="hidden lg:flex w-72 xl:w-80 flex-shrink-0 flex-col bg-dark-800 border-r border-white/5 px-8 py-10 sticky top-0 h-screen">
-        {/* Logo + toggle */}
+      <aside className="hidden lg:flex w-72 xl:w-80 flex-shrink-0 flex-col bg-secondary/30 border-r border-border px-8 py-10 sticky top-0 h-screen">
+        {/* Logo */}
         <div className="flex items-center justify-between mb-14">
           <a href="/" aria-label="Home">
-            <span className="text-xl font-extrabold tracking-tight">
-              <span className="text-white">myother</span><span className="text-brand-500">pair</span>
+            <span className="font-display text-xl font-extrabold tracking-tight">
+              <span className="text-foreground">myother</span><span className="text-accent">pair</span>
             </span>
           </a>
-          <ThemeToggle />
         </div>
 
         {/* Step list */}
@@ -618,7 +626,7 @@ export default function SignUpPage() {
         </div>
 
         {/* Footer tagline */}
-        <p className="text-xs text-white/20 leading-relaxed">
+        <p className="text-xs text-muted-foreground/50 leading-relaxed">
           Every shoe deserves a match.
         </p>
       </aside>
@@ -627,13 +635,12 @@ export default function SignUpPage() {
       <main className="flex-1 flex flex-col min-h-screen">
 
         {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center justify-between px-6 py-5 border-b border-white/5 bg-dark-800">
+        <div className="lg:hidden flex items-center justify-between px-6 py-5 border-b border-border bg-card">
           <a href="/" aria-label="Home">
-            <span className="text-xl font-extrabold tracking-tight">
-              <span className="text-white">myother</span><span className="text-brand-500">pair</span>
+            <span className="font-display text-xl font-extrabold tracking-tight">
+              <span className="text-foreground">myother</span><span className="text-accent">pair</span>
             </span>
           </a>
-          <ThemeToggle />
         </div>
 
         {/* Mobile progress bar */}
@@ -641,14 +648,14 @@ export default function SignUpPage() {
           <div className="lg:hidden px-6 pt-5 pb-1">
             <div className="flex justify-between mb-2">
               {STEP_LABELS.map((label, i) => (
-                <span key={label} className={`text-[11px] font-semibold ${i + 1 <= step ? 'text-brand-500' : 'text-white/25'}`}>
+                <span key={label} className={`text-[11px] font-semibold ${i + 1 <= step ? 'text-accent' : 'text-muted-foreground/40'}`}>
                   {i + 1}. {label}
                 </span>
               ))}
             </div>
-            <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${(step / TOTAL_STEPS) * 100}%`, background: 'linear-gradient(to right,#fd267a,#ff6036)' }} />
+            <div className="h-1 bg-border rounded-full overflow-hidden">
+              <div className="h-full rounded-full gradient-warm transition-all duration-500 ease-out"
+                style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
             </div>
           </div>
         )}
@@ -671,8 +678,8 @@ export default function SignUpPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <h2 className="text-3xl font-extrabold text-white mb-3">Verified!</h2>
-                    <p className="text-white/40 mb-2">Taking you to your dashboard…</p>
+                    <h2 className="font-display text-3xl font-extrabold text-foreground mb-3">Verified!</h2>
+                    <p className="text-muted-foreground mb-2">Taking you to your dashboard…</p>
                     <div className="flex gap-1 mt-4">
                       {[0,1,2].map(i => (
                         <div key={i} className="w-2 h-2 rounded-full bg-green-500 animate-bounce"
@@ -683,11 +690,11 @@ export default function SignUpPage() {
                 ) : otpMethod === null ? null : (
                   /* OTP input */
                   <>
-                    <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-8 text-3xl">
+                    <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-8 text-3xl">
                       📧
                     </div>
-                    <h2 className="text-3xl font-extrabold text-white mb-3">Enter code</h2>
-                    <p className="text-white/40 mb-8 leading-relaxed max-w-xs text-sm">
+                    <h2 className="font-display text-3xl font-extrabold text-foreground mb-3">Enter code</h2>
+                    <p className="text-muted-foreground mb-8 leading-relaxed max-w-xs text-sm">
                       Sent to {form.email || 'your email'}
                     </p>
 
@@ -707,12 +714,12 @@ export default function SignUpPage() {
                           value={digit}
                           onChange={e => handleOtpInput(i, e.target.value)}
                           onKeyDown={e => handleOtpKeyDown(i, e)}
-                          className={`text-center text-xl font-bold rounded-2xl border bg-white/5 text-white outline-none transition-all ${
+                          className={`text-center text-xl font-bold rounded-2xl border bg-background text-foreground outline-none transition-all ${
                             otpError
-                              ? 'border-red-500 bg-red-500/10 text-red-400'
+                              ? 'border-destructive bg-destructive/10 text-destructive'
                               : digit
-                                ? 'border-brand-500 bg-brand-500/10'
-                                : 'border-white/15 focus:border-brand-500 focus:bg-white/8'
+                                ? 'border-accent bg-accent/10'
+                                : 'border-input focus:border-accent'
                           }`}
                           style={{ width: 'clamp(40px, 12vw, 52px)', height: 'clamp(48px, 14vw, 60px)' }}
                         />
@@ -720,26 +727,25 @@ export default function SignUpPage() {
                     </div>
 
                     {otpError && (
-                      <p className="text-sm text-red-400 mb-6" style={{ animation: 'pop-in 0.2s ease-out' }}>
+                      <p className="text-sm text-destructive mb-6" style={{ animation: 'pop-in 0.2s ease-out' }}>
                         {otpError}
                       </p>
                     )}
 
                     <button type="button" onClick={submitOtp}
                       disabled={otp.some(d => !d)}
-                      className="w-full max-w-xs py-3.5 text-sm font-bold text-white rounded-2xl transition-all disabled:opacity-40 active:scale-[.97] mb-6"
-                      style={{ background: 'linear-gradient(to right,#fd267a,#ff6036)' }}>
+                      className="gradient-warm w-full max-w-xs py-3.5 text-sm font-bold text-accent-foreground rounded-2xl transition-all disabled:opacity-40 active:scale-[.97] mb-6">
                       Verify
                     </button>
 
-                    <div className="flex items-center gap-2 text-sm text-white/30">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       {resendSecs > 0 ? (
                         <span>Resend in {resendSecs}s</span>
                       ) : (
                         <>
                           <span>Didn't get it?</span>
                           <button type="button" onClick={() => startResendTimer()}
-                            className="text-brand-500 hover:text-brand-400 font-semibold transition-colors">
+                            className="text-accent hover:text-accent/80 font-semibold transition-colors">
                             Resend
                           </button>
                         </>
@@ -753,16 +759,15 @@ export default function SignUpPage() {
               /* ── Legacy success (not reached now) ─────────────────────── */
               <div className="flex flex-col items-center text-center py-12" style={{ animation: 'step-enter-right 0.4s ease-out' }}>
                 <div className="w-24 h-24 rounded-full flex items-center justify-center mb-8"
-                  style={{ background: 'linear-gradient(to bottom right,#fd267a,#ff6036)', animation: 'pop-in 0.5s cubic-bezier(0.175,0.885,0.32,1.275) 0.1s both' }}>
+                  style={{ background: 'linear-gradient(to bottom right,#22c55e,#16a34a)', animation: 'pop-in 0.5s cubic-bezier(0.175,0.885,0.32,1.275) 0.1s both' }}>
                   <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h2 className="text-4xl font-extrabold text-white mb-4">You're in.</h2>
-                <p className="text-lg text-white/40 mb-10 leading-relaxed">Your account is ready. Time to find your pair.</p>
+                <h2 className="font-display text-4xl font-extrabold text-foreground mb-4">You're in.</h2>
+                <p className="text-lg text-muted-foreground mb-10 leading-relaxed">Your account is ready. Time to find your pair.</p>
                 <a href="/app"
-                  className="inline-flex items-center gap-2 text-white text-sm font-bold px-8 py-4 rounded-2xl hover:opacity-90 active:scale-[.98] transition-all"
-                  style={{ background: 'linear-gradient(to right,#fd267a,#ff6036)' }}>
+                  className="gradient-warm inline-flex items-center gap-2 text-accent-foreground text-sm font-bold px-8 py-4 rounded-2xl hover:opacity-90 active:scale-[.98] transition-all">
                   Find my match
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -776,8 +781,8 @@ export default function SignUpPage() {
                 {step === 1 && (
                   <>
                     <div>
-                      <h1 className="text-3xl font-extrabold text-white mb-2">About you</h1>
-                      <p className="text-base text-white/40">Let's start with the basics.</p>
+                      <h1 className="font-display text-3xl font-extrabold text-foreground mb-2">About you</h1>
+                      <p className="text-base text-muted-foreground">Let's start with the basics.</p>
                     </div>
 
                     {/* Google sign-up */}
@@ -793,9 +798,9 @@ export default function SignUpPage() {
                         Continue with Google
                       </button>
                       <div className="flex items-center gap-4">
-                        <div className="flex-1 h-px bg-white/8" />
-                        <span className="text-xs text-white/25">or with email</span>
-                        <div className="flex-1 h-px bg-white/8" />
+                        <div className="flex-1 h-px bg-border" />
+                        <span className="text-xs text-muted-foreground/60">or with email</span>
+                        <div className="flex-1 h-px bg-border" />
                       </div>
                     </div>
 
@@ -834,7 +839,7 @@ export default function SignUpPage() {
                               onChange={e => set('password', e.target.value)} placeholder="Create a strong password"
                               className={field(!!errors.password) + ' pr-11'} />
                             <button type="button" onClick={() => setShowPass(v => !v)}
-                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors" aria-label="Toggle password">
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors" aria-label="Toggle password">
                               <EyeIcon open={showPass} />
                             </button>
                           </div>
@@ -848,7 +853,7 @@ export default function SignUpPage() {
                                 <div className="flex gap-1 mb-1.5">
                                   {[1,2,3,4,5].map(i => (
                                     <div key={i} className="flex-1 h-1 rounded-full transition-all duration-300"
-                                      style={{ background: i <= score ? color : 'rgba(255,255,255,0.08)' }} />
+                                      style={{ background: i <= score ? color : 'var(--border)' }} />
                                   ))}
                                 </div>
                                 <p className="text-xs font-semibold transition-colors" style={{ color }}>{STRENGTH_LABELS[score]}</p>
@@ -862,10 +867,10 @@ export default function SignUpPage() {
                               {PW_RULES.map(r => {
                                 const ok = r.test(form.password);
                                 return (
-                                  <li key={r.label} className={`flex items-center gap-2 text-xs transition-colors ${ok ? 'text-white/50' : 'text-white/25'}`}>
-                                    <span className={`flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center transition-all ${ok ? 'bg-green-500/20' : 'bg-white/5'}`}>
+                                  <li key={r.label} className={`flex items-center gap-2 text-xs transition-colors ${ok ? 'text-muted-foreground' : 'text-muted-foreground/40'}`}>
+                                    <span className={`flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center transition-all ${ok ? 'bg-match-green/20' : 'bg-border'}`}>
                                       {ok && (
-                                        <svg className="w-2 h-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <svg className="w-2 h-2 text-match-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                         </svg>
                                       )}
@@ -888,7 +893,7 @@ export default function SignUpPage() {
                               onChange={e => set('confirm', e.target.value)} placeholder="Repeat password"
                               className={field(!!errors.confirm) + ' pr-11'} />
                             <button type="button" onClick={() => setShowConf(v => !v)}
-                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors" aria-label="Toggle password">
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors" aria-label="Toggle password">
                               <EyeIcon open={showConf} />
                             </button>
                           </div>
@@ -907,7 +912,7 @@ export default function SignUpPage() {
                               className={field(!!(errors.city || cityValidationError)) + (cityValidating ? ' pr-11' : '')} />
                             {cityValidating && (
                               <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                                <svg className="w-4 h-4 animate-spin text-white/30" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                <svg className="w-4 h-4 animate-spin text-muted-foreground/50" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                                 </svg>
@@ -937,27 +942,25 @@ export default function SignUpPage() {
                 {step === 2 && (
                   <>
                     <div>
-                      <h1 className="text-3xl font-extrabold text-white mb-2">Your feet</h1>
-                      <p className="text-base text-white/40">This is how we find your perfect match.</p>
+                      <h1 className="font-display text-3xl font-extrabold text-foreground mb-2">Your feet</h1>
+                      <p className="text-base text-muted-foreground">This is how we find your perfect match.</p>
                     </div>
 
                     <div className="flex flex-col gap-8">
                       {/* Controls */}
                       <div className="flex items-center gap-3 flex-wrap">
-                        <div className="flex bg-white/5 rounded-2xl p-1 gap-1">
+                        <div className="flex bg-secondary rounded-xl p-1 gap-1">
                           {(['mens','womens'] as Gender[]).map(g => (
                             <button key={g} type="button" onClick={() => handleGenderChange(g)}
-                              className={segBtn(form.gender === g)}
-                              style={form.gender === g ? { background:'linear-gradient(to right,#fd267a,#ff6036)' } : {}}>
+                              className={segBtn(form.gender === g)}>
                               {g === 'mens' ? "Men's" : "Women's"}
                             </button>
                           ))}
                         </div>
-                        <div className="flex bg-white/5 rounded-2xl p-1 gap-1 ml-auto">
+                        <div className="flex bg-secondary rounded-xl p-1 gap-1 ml-auto">
                           {(['US','UK','EU'] as SizeSystem[]).map(sys => (
                             <button key={sys} type="button" onClick={() => handleSystemChange(sys)}
-                              className={segBtn(form.sizeSystem === sys)}
-                              style={form.sizeSystem === sys ? { background:'linear-gradient(to right,#fd267a,#ff6036)' } : {}}>
+                              className={segBtn(form.sizeSystem === sys)}>
                               {sys}
                             </button>
                           ))}
@@ -976,16 +979,16 @@ export default function SignUpPage() {
                                 leftSize: null, rightSize: null,
                               }))} />
                             <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-all ${
-                              form.amputee ? 'border-transparent' : 'bg-white/5 border-white/20'
-                            }`} style={form.amputee ? { background:'linear-gradient(to right,#fd267a,#ff6036)' } : {}}>
+                              form.amputee ? 'gradient-warm border-transparent' : 'bg-background border-border'
+                            }`}>
                               {form.amputee && (
-                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <svg className="w-3 h-3 text-accent-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                 </svg>
                               )}
                             </div>
                           </div>
-                          <span className="text-sm text-white/50">I'm an amputee (one foot)</span>
+                          <span className="text-sm text-foreground">I'm an amputee (one foot)</span>
                         </label>
 
                         {/* Same size — only when not amputee */}
@@ -998,16 +1001,16 @@ export default function SignUpPage() {
                                   rightSize: e.target.checked ? f.leftSize : f.rightSize,
                                 }))} />
                               <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-all ${
-                                form.sameSize ? 'border-transparent' : 'bg-white/5 border-white/20'
-                              }`} style={form.sameSize ? { background:'linear-gradient(to right,#fd267a,#ff6036)' } : {}}>
+                                form.sameSize ? 'gradient-warm border-transparent' : 'bg-background border-border'
+                              }`}>
                                 {form.sameSize && (
-                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                  <svg className="w-3 h-3 text-accent-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                   </svg>
                                 )}
                               </div>
                             </div>
-                            <span className="text-sm text-white/50">My feet are the same size</span>
+                            <span className="text-sm text-foreground">My feet are the same size</span>
                           </label>
                         )}
                       </div>
@@ -1016,20 +1019,23 @@ export default function SignUpPage() {
                         /* ── Amputee: which foot + single grid ── */
                         <div className="flex flex-col gap-4">
                           <div className="flex items-center gap-3">
-                            <span className="text-sm text-white/50">Which foot?</span>
-                            <div className="flex bg-white/5 rounded-2xl p-1 gap-1">
+                            <span className="text-sm text-muted-foreground">Which foot?</span>
+                            <div className="flex bg-secondary rounded-xl p-1 gap-1">
                               {(['Left', 'Right'] as const).map(foot => (
                                 <button key={foot} type="button"
                                   onClick={() => setForm(f => ({ ...f, amputeeFoot: foot, leftSize: null, rightSize: null }))}
-                                  className={segBtn(form.amputeeFoot === foot)}
-                                  style={form.amputeeFoot === foot ? { background:'linear-gradient(to right,#fd267a,#ff6036)' } : {}}>
+                                  className={`px-4 py-2 text-xs font-bold transition-all ${
+                                    form.amputeeFoot === foot
+                                      ? 'gradient-warm text-accent-foreground border-transparent rounded-lg'
+                                      : 'bg-background border-border text-muted-foreground hover:border-accent hover:text-accent rounded-lg'
+                                  }`}>
                                   {foot}
                                 </button>
                               ))}
                             </div>
                           </div>
                           <div className="flex flex-col gap-3">
-                            <p className="text-sm font-semibold text-white/60">
+                            <p className="text-sm font-semibold text-muted-foreground">
                               {form.amputeeFoot === 'Left' ? '🦶' : <span style={{ transform:'scaleX(-1)', display:'inline-block' }}>🦶</span>}
                               {' '}{form.amputeeFoot} foot size
                             </p>
@@ -1051,14 +1057,14 @@ export default function SignUpPage() {
                         /* ── Normal: two feet side by side ── */
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <div className="flex flex-col gap-3">
-                            <p className="text-sm font-semibold text-white/60">🦶 Left foot</p>
+                            <p className="text-sm font-semibold text-muted-foreground">🦶 Left foot</p>
                             <SizeGrid sizes={sizeRange} selected={form.leftSize}
                               onSelect={size => setForm(f => ({ ...f, leftSize: size, rightSize: f.sameSize ? size : f.rightSize }))}
                               error={errors.leftSize} />
                             {leftConv && <ConvBadge row={leftConv} />}
                           </div>
                           <div className="flex flex-col gap-3" style={{ opacity: form.sameSize ? 0.4 : 1, pointerEvents: form.sameSize ? 'none' : 'auto' }}>
-                            <p className="text-sm font-semibold text-white/60">
+                            <p className="text-sm font-semibold text-muted-foreground">
                               <span style={{ transform:'scaleX(-1)', display:'inline-block', marginRight:'4px' }}>🦶</span>
                               Right foot
                             </p>
@@ -1070,17 +1076,23 @@ export default function SignUpPage() {
                         </div>
                       )}
 
+                      {/* "Sizes match" banner — shown when same size is checked and a size is selected */}
+                      {form.sameSize && form.leftSize !== null && (
+                        <div className="bg-match-green/10 border border-match-green/20 rounded-xl p-3 text-match-green text-sm">
+                          Both feet set to size {fmt(form.leftSize)} {form.sizeSystem}
+                        </div>
+                      )}
+
                       {/* Brands */}
                       <div>
-                        <p className="text-sm font-semibold text-white/60 mb-3">Preferred brands</p>
+                        <p className="text-sm font-semibold text-muted-foreground mb-3">Preferred brands</p>
                         <div className="flex flex-wrap gap-2">
                           {BRANDS.map(brand => {
                             const on = form.brands.includes(brand);
                             return (
                               <button key={brand} type="button"
                                 onClick={() => set('brands', on ? form.brands.filter(b => b !== brand) : [...form.brands, brand])}
-                                className={chipCls(on)}
-                                style={on ? { background:'linear-gradient(to right,#fd267a,#ff6036)' } : {}}>
+                                className={chipCls(on)}>
                                 {brand}
                               </button>
                             );
@@ -1096,42 +1108,42 @@ export default function SignUpPage() {
                 {step === 3 && (
                   <>
                     <div>
-                      <h1 className="text-3xl font-extrabold text-white mb-2">Profile photo</h1>
-                      <p className="text-base text-white/40">Optional — you can always add one later.</p>
+                      <h1 className="font-display text-3xl font-extrabold text-foreground mb-2">Profile photo</h1>
+                      <p className="text-base text-muted-foreground">Optional — you can always add one later.</p>
                     </div>
 
                     <div className="flex flex-col gap-6">
                       <div
-                        className="w-full rounded-3xl border-2 border-dashed border-white/15 flex flex-col items-center justify-center gap-5 py-20 cursor-pointer group hover:border-brand-500/50 hover:bg-white/[0.02] transition-all"
+                        className="w-full rounded-3xl border-2 border-dashed border-border bg-secondary/50 flex flex-col items-center justify-center gap-5 py-20 cursor-pointer group hover:bg-secondary transition-all"
                         onClick={() => fileRef.current?.click()}
                         onDragOver={e => e.preventDefault()}
                         onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f?.type.startsWith('image/')) applyPhoto(f); }}
                       >
                         {photoUrl ? (
                           <div className="flex flex-col items-center gap-4">
-                            <img src={photoUrl} alt="Preview" className="w-32 h-32 rounded-full object-cover ring-4 ring-white/10" />
-                            <p className="text-sm text-white/50">Click to change</p>
+                            <img src={photoUrl} alt="Preview" className="w-32 h-32 rounded-full object-cover ring-4 ring-border" />
+                            <p className="text-sm text-muted-foreground">Click to change</p>
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-4 pointer-events-none">
-                            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
-                              <svg className="w-8 h-8 text-white/30 group-hover:text-brand-500/70 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center group-hover:bg-secondary/80 transition-colors">
+                              <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
                             </div>
                             <div className="text-center">
-                              <p className="text-sm text-white/50">
-                                Drag & drop or <span className="text-brand-500 font-semibold">choose a file</span>
+                              <p className="text-sm text-muted-foreground">
+                                Drag & drop or <span className="text-accent font-semibold">choose a file</span>
                               </p>
-                              <p className="text-xs text-white/25 mt-1">JPEG, PNG or WebP · Max 5 MB</p>
+                              <p className="text-xs text-muted-foreground/50 mt-1">JPEG, PNG or WebP · Max 5 MB</p>
                             </div>
                           </div>
                         )}
                       </div>
 
                       {photoUrl && (
-                        <button type="button" onClick={removePhoto} className="text-xs text-white/25 hover:text-red-400 transition-colors text-center">
+                        <button type="button" onClick={removePhoto} className="text-xs text-muted-foreground/50 hover:text-destructive transition-colors text-center">
                           Remove photo
                         </button>
                       )}
@@ -1143,37 +1155,36 @@ export default function SignUpPage() {
                 )}
 
                 {/* ── Navigation ──────────────────────────────────────────── */}
-                <div className="flex items-center justify-between pt-8 border-t border-white/5">
+                <div className="flex items-center justify-between pt-8 border-t border-border">
                   {step > 1 ? (
                     <button type="button" onClick={goBack}
-                      className="flex items-center gap-2 px-5 py-3 text-sm font-semibold text-white/50 bg-white/5 hover:bg-white/10 rounded-2xl transition-all">
+                      className="flex items-center gap-2 px-5 py-3 text-sm font-semibold text-muted-foreground border border-border hover:border-foreground hover:text-foreground rounded-2xl transition-all">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
                       </svg>
                       Back
                     </button>
                   ) : (
-                    <p className="text-sm text-white/30">
+                    <p className="text-sm text-muted-foreground">
                       Have an account?{' '}
-                      <a href="/login" className="font-semibold text-brand-500 hover:text-brand-400 transition-colors">Sign in</a>
+                      <a href="/login" className="font-semibold text-accent hover:text-accent/80 transition-colors">Sign in</a>
                     </p>
                   )}
 
                   {authError && step === TOTAL_STEPS && (
-                    <p className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5 mb-2">{authError}</p>
+                    <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-2.5 mb-2">{authError}</p>
                   )}
 
                   <div className="flex items-center gap-4">
                     {step === TOTAL_STEPS && !photoUrl && (
                       <button type="button" onClick={handleSubmit} disabled={loading}
-                        className="text-sm text-white/30 hover:text-white/50 transition-colors">
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                         Skip for now
                       </button>
                     )}
                     {step < TOTAL_STEPS ? (
                       <button type="button" onClick={goNext}
-                        className="flex items-center gap-2 px-8 py-3.5 text-sm font-bold text-white rounded-2xl active:scale-[.97] transition-all"
-                        style={{ background:'linear-gradient(to right,#fd267a,#ff6036)' }}>
+                        className="gradient-warm flex items-center gap-2 px-8 py-3.5 text-sm font-bold text-accent-foreground rounded-2xl active:scale-[.97] transition-all">
                         Continue
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -1181,8 +1192,7 @@ export default function SignUpPage() {
                       </button>
                     ) : (
                       <button type="button" onClick={handleSubmit} disabled={loading}
-                        className="flex items-center gap-2 px-8 py-3.5 text-sm font-bold text-white rounded-2xl active:scale-[.97] transition-all disabled:opacity-60"
-                        style={{ background:'linear-gradient(to right,#fd267a,#ff6036)' }}>
+                        className="gradient-warm flex items-center gap-2 px-8 py-3.5 text-sm font-bold text-accent-foreground rounded-2xl active:scale-[.97] transition-all disabled:opacity-60">
                         {loading ? (
                           <>
                             <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
