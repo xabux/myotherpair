@@ -1,1217 +1,520 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
+import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
+import {
+  type SizeSystem,
+  getSizes,
+  formatSizeLabel,
+  toUKCanonical,
+  detectSizeSystem,
+} from '../../lib/sizeConversion';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
 
-type SizeSystem = 'US' | 'UK' | 'EU';
-type Gender     = 'mens' | 'womens';
-interface SizeConvRow { us: number; uk: number; eu: number }
-
-// ─── Conversion tables ────────────────────────────────────────────────────────
-
-const MENS_TABLE: SizeConvRow[] = [
-  { us: 4,    uk: 3.5,  eu: 36 }, { us: 4.5,  uk: 4,    eu: 37 },
-  { us: 5,    uk: 4.5,  eu: 37 }, { us: 5.5,  uk: 5,    eu: 38 },
-  { us: 6,    uk: 5.5,  eu: 38 }, { us: 6.5,  uk: 6,    eu: 39 },
-  { us: 7,    uk: 6.5,  eu: 40 }, { us: 7.5,  uk: 7,    eu: 40 },
-  { us: 8,    uk: 7.5,  eu: 41 }, { us: 8.5,  uk: 8,    eu: 41 },
-  { us: 9,    uk: 8.5,  eu: 42 }, { us: 9.5,  uk: 9,    eu: 42 },
-  { us: 10,   uk: 9.5,  eu: 43 }, { us: 10.5, uk: 10,   eu: 43 },
-  { us: 11,   uk: 10.5, eu: 44 }, { us: 11.5, uk: 11,   eu: 45 },
-  { us: 12,   uk: 11.5, eu: 45 }, { us: 12.5, uk: 12,   eu: 46 },
-  { us: 13,   uk: 12.5, eu: 46 }, { us: 13.5, uk: 13,   eu: 47 },
-  { us: 14,   uk: 13.5, eu: 47 }, { us: 14.5, uk: 14,   eu: 48 },
-  { us: 15,   uk: 14.5, eu: 48 }, { us: 15.5, uk: 15,   eu: 49 },
-  { us: 16,   uk: 15.5, eu: 50 },
-];
-
-const WOMENS_TABLE: SizeConvRow[] = [
-  { us: 4,    uk: 2,    eu: 34 }, { us: 4.5,  uk: 2.5,  eu: 35 },
-  { us: 5,    uk: 3,    eu: 35 }, { us: 5.5,  uk: 3.5,  eu: 36 },
-  { us: 6,    uk: 4,    eu: 36 }, { us: 6.5,  uk: 4.5,  eu: 37 },
-  { us: 7,    uk: 5,    eu: 37 }, { us: 7.5,  uk: 5.5,  eu: 38 },
-  { us: 8,    uk: 6,    eu: 38 }, { us: 8.5,  uk: 6.5,  eu: 39 },
-  { us: 9,    uk: 7,    eu: 39 }, { us: 9.5,  uk: 7.5,  eu: 40 },
-  { us: 10,   uk: 8,    eu: 40 }, { us: 10.5, uk: 8.5,  eu: 41 },
-  { us: 11,   uk: 9,    eu: 41 }, { us: 11.5, uk: 9.5,  eu: 42 },
-  { us: 12,   uk: 10,   eu: 42 }, { us: 12.5, uk: 10.5, eu: 43 },
-  { us: 13,   uk: 11,   eu: 43 }, { us: 13.5, uk: 11.5, eu: 44 },
-  { us: 14,   uk: 12,   eu: 44 },
-];
-
-// ─── Size helpers ─────────────────────────────────────────────────────────────
-
-function getSizeRange(system: SizeSystem, gender: Gender): number[] {
-  if (system === 'EU') return Array.from({ length: 17 }, (_, i) => 36 + i);
-  if (system === 'UK') { const o: number[] = []; for (let s = 3; s <= 15; s += 0.5) o.push(s); return o; }
-  const max = gender === 'mens' ? 16 : 14;
-  const o: number[] = []; for (let s = 4; s <= max; s += 0.5) o.push(s); return o;
-}
-
-function getTable(g: Gender) { return g === 'mens' ? MENS_TABLE : WOMENS_TABLE; }
-
-function findConvExact(v: number, sys: SizeSystem, g: Gender): SizeConvRow | null {
-  const key = sys.toLowerCase() as keyof SizeConvRow;
-  return getTable(g).find(r => r[key] === v) ?? null;
-}
-
-function remapSize(v: number | null, from: SizeSystem, to: SizeSystem, g: Gender): number | null {
-  if (v === null) return null;
-  const fk = from.toLowerCase() as keyof SizeConvRow, tk = to.toLowerCase() as keyof SizeConvRow;
-  let best: SizeConvRow | null = null, bd = Infinity;
-  for (const r of getTable(g)) { const d = Math.abs((r[fk] as number) - v); if (d < bd) { bd = d; best = r; } }
-  if (!best) return null;
-  const cv = best[tk] as number;
-  const range = getSizeRange(to, g);
-  let nearest: number | null = null, nd = Infinity;
-  for (const s of range) { const d = Math.abs(s - cv); if (d < nd) { nd = d; nearest = s; } }
-  return nearest;
-}
-
-function fmt(n: number) { return String(n); }
-
-// ─── Password strength ────────────────────────────────────────────────────────
-
-const PW_RULES = [
-  { label: 'At least 8 characters',       test: (p: string) => p.length >= 8 },
-  { label: 'One uppercase letter (A–Z)',   test: (p: string) => /[A-Z]/.test(p) },
-  { label: 'One lowercase letter (a–z)',   test: (p: string) => /[a-z]/.test(p) },
-  { label: 'One number (0–9)',             test: (p: string) => /[0-9]/.test(p) },
-  { label: 'One special character (!@#…)', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
-];
-
-function passwordScore(p: string): number {
-  return PW_RULES.filter(r => r.test(p)).length;
-}
-
-const STRENGTH_LABELS = ['', 'Weak', 'Weak', 'Fair', 'Good', 'Strong'];
-const STRENGTH_COLORS = ['', '#ef4444', '#ef4444', '#f97316', '#eab308', '#22c55e'];
-
-// ─── Static data ──────────────────────────────────────────────────────────────
-
-const BRANDS = ['Nike','Adidas','Jordan','New Balance','Vans','Converse','Timberland','Puma','Reebok','Other'];
-
-const COUNTRY_CODES: Record<string, string> = {
-  'United States':  'us', 'United Kingdom': 'gb',
-  'Austria':        'at', 'Belgium':        'be', 'Bulgaria':    'bg', 'Croatia':     'hr',
-  'Cyprus':         'cy', 'Czech Republic': 'cz', 'Denmark':     'dk', 'Estonia':     'ee',
-  'Finland':        'fi', 'France':         'fr', 'Germany':     'de', 'Greece':      'gr',
-  'Hungary':        'hu', 'Ireland':        'ie', 'Italy':       'it', 'Latvia':      'lv',
-  'Lithuania':      'lt', 'Luxembourg':     'lu', 'Malta':       'mt', 'Netherlands': 'nl',
-  'Poland':         'pl', 'Portugal':       'pt', 'Romania':     'ro', 'Slovakia':    'sk',
-  'Slovenia':       'si', 'Spain':          'es', 'Sweden':      'se',
-};
-
-// US + UK first, then EU countries alphabetically
-const COUNTRIES = [
-  'United States', 'United Kingdom',
-  ...Object.keys(COUNTRY_CODES)
-    .filter(c => c !== 'United States' && c !== 'United Kingdom')
-    .sort(),
-];
-
-// ─── Form state ───────────────────────────────────────────────────────────────
-
-interface FormState {
-  firstName:string; lastName:string; email:string; password:string; confirm:string;
-  city:string; country:string;
-  sizeSystem:SizeSystem; gender:Gender;
-  leftSize:number|null; rightSize:number|null; sameSize:boolean;
-  amputee:boolean; amputeeFoot:'Left'|'Right';
-  brands:string[];
-}
-type Errors = Partial<Record<keyof FormState, string>>;
-
-const INIT: FormState = {
-  firstName:'',lastName:'',email:'',password:'',confirm:'',
-  city:'',country:'',
-  sizeSystem:'US',gender:'mens',leftSize:null,rightSize:null,sameSize:false,
-  amputee:false,amputeeFoot:'Left',brands:[],
-};
-
-function validate(step: number, f: FormState): Errors {
-  const e: Errors = {};
-  if (step === 1) {
-    if (!f.firstName.trim())  e.firstName = 'Required';
-    if (!f.lastName.trim())   e.lastName  = 'Required';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) e.email = 'Valid email required';
-    if (passwordScore(f.password) < 5) e.password = 'Password does not meet all requirements';
-    if (f.confirm !== f.password)      e.confirm  = "Passwords don't match";
-    if (!f.city.trim()) e.city    = 'Required';
-    if (!f.country)     e.country = 'Required';
-  }
-  if (step === 2) {
-    if (f.amputee) {
-      if (f.amputeeFoot === 'Left'  && f.leftSize  === null) e.leftSize  = 'Select a size';
-      if (f.amputeeFoot === 'Right' && f.rightSize === null) e.rightSize = 'Select a size';
-    } else {
-      if (f.leftSize === null)  e.leftSize  = 'Select a size';
-      if (f.rightSize === null) e.rightSize = 'Select a size';
-    }
-    if (!f.brands.length) e.brands = 'Select at least one';
-  }
-  return e;
-}
-
-// ─── Shared styles ────────────────────────────────────────────────────────────
-
-const field = (hasErr?: boolean) =>
-  `w-full bg-background border ${hasErr
-    ? 'border-destructive focus:border-destructive focus:ring-destructive/30'
-    : 'border-input focus:border-accent focus:ring-accent/30'
-  } text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:ring-1 transition-colors`;
-
-const lbl = 'block text-xs font-medium text-muted-foreground mb-1.5';
-const errMsg = 'text-xs text-destructive mt-1.5';
-
-// ─── EyeIcon ──────────────────────────────────────────────────────────────────
-
-function EyeIcon({ open }: { open: boolean }) {
-  return open ? (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-    </svg>
-  ) : (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-    </svg>
+function ConversionTooltip() {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex items-center">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="text-muted-foreground/50 hover:text-accent transition-colors"
+        aria-label="Size conversion chart"
+      >
+        <Info className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <div className="absolute bottom-6 left-0 z-50 w-56 bg-card border border-border/40 rounded-xl shadow-lg p-3 text-[11px] text-foreground">
+          <p className="font-semibold mb-2 text-[10px] uppercase tracking-widest text-muted-foreground">Quick reference</p>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="text-muted-foreground/60">
+                <th className="text-left pb-1 font-medium">UK</th>
+                <th className="text-left pb-1 font-medium">US</th>
+                <th className="text-left pb-1 font-medium">EU</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { uk: '5', us: '6', eu: '38' },
+                { uk: '6', us: '7', eu: '39' },
+                { uk: '7', us: '8', eu: '41' },
+                { uk: '8', us: '9', eu: '42' },
+                { uk: '9', us: '10', eu: '43' },
+                { uk: '10', us: '11', eu: '44' },
+                { uk: '11', us: '12', eu: '45' },
+              ].map(r => (
+                <tr key={r.uk} className="border-t border-border/20">
+                  <td className="py-0.5">{r.uk}</td>
+                  <td className="py-0.5">{r.us}</td>
+                  <td className="py-0.5">{r.eu}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-muted-foreground/50 mt-2 text-[10px]">Mens/unisex. Women's run ~1.5 sizes smaller in US.</p>
+        </div>
+      )}
+    </span>
   );
 }
 
-// ─── SizeGrid ─────────────────────────────────────────────────────────────────
+// ─── Size system toggle ───────────────────────────────────────────────────────
 
-function SizeGrid({ sizes, selected, onSelect, error }: {
-  sizes: number[]; selected: number|null; onSelect: (v: number) => void; error?: string;
-}) {
-  return (
-    <div>
-      <div className="grid grid-cols-6 gap-2">
-        {sizes.map(size => {
-          const active = selected === size;
-          return (
-            <button key={size} type="button" onClick={() => onSelect(size)}
-              className={`h-11 text-xs font-bold rounded-xl border transition-all ${
-                active
-                  ? 'gradient-warm border-accent text-accent-foreground'
-                  : 'border-border bg-secondary/50 text-muted-foreground hover:bg-secondary hover:border-border hover:text-foreground'
-              }`}
-            >
-              {fmt(size)}
-            </button>
-          );
-        })}
-      </div>
-      {error && <p className={errMsg}>{error}</p>}
-    </div>
-  );
+interface SizeSystemToggleProps {
+  value: SizeSystem;
+  onChange: (v: SizeSystem) => void;
 }
 
-// ─── ConvBadge ────────────────────────────────────────────────────────────────
-
-function ConvBadge({ row }: { row: SizeConvRow }) {
-  const items = [`US ${fmt(row.us)}`, `UK ${fmt(row.uk)}`, `EU ${row.eu}`];
+function SizeSystemToggle({ value, onChange }: SizeSystemToggleProps) {
   return (
-    <div className="flex items-center gap-1.5 mt-2.5" style={{ animation: 'pop-in 0.2s ease-out' }}>
-      {items.map((label, i) => (
-        <span key={label} className="flex items-center gap-1.5">
-          <span className="text-[10px] px-2 py-0.5 bg-secondary border border-border rounded-full text-muted-foreground font-medium">{label}</span>
-          {i < 2 && <span className="text-muted-foreground/40 text-[10px]">→</span>}
-        </span>
+    <div className="flex gap-2">
+      {(['UK', 'US', 'EU'] as SizeSystem[]).map(sys => (
+        <button
+          key={sys}
+          type="button"
+          onClick={() => onChange(sys)}
+          className={`flex-1 h-11 rounded-xl text-sm font-semibold border transition-all duration-200 ${
+            value === sys
+              ? 'bg-accent text-accent-foreground border-accent shadow-sm'
+              : 'bg-muted/50 text-muted-foreground border-border/30 hover:border-border'
+          }`}
+        >
+          {sys}
+        </button>
       ))}
     </div>
   );
 }
 
-// ─── CountrySelect ────────────────────────────────────────────────────────────
+// ─── Size select ──────────────────────────────────────────────────────────────
 
-function CountrySelect({ value, onChange, error }: {
-  value: string; onChange: (v: string) => void; error?: string;
-}) {
-  const [open,   setOpen]   = useState(false);
-  const [search, setSearch] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
+interface SizeSelectProps {
+  system: SizeSystem;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}
 
-  useEffect(() => {
-    const handle = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, []);
-
-  const filtered = COUNTRIES.filter(c => c.toLowerCase().includes(search.toLowerCase()));
-
+function SizeSelect({ system, value, onChange, placeholder = 'Select size' }: SizeSelectProps) {
+  const sizes = getSizes(system);
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => { setOpen(v => !v); setSearch(''); }}
-        className={`w-full flex items-center justify-between bg-background border ${
-          error ? 'border-destructive' : 'border-input'
-        } text-sm px-4 py-3 rounded-xl outline-none transition-colors ${
-          value ? 'text-foreground' : 'text-muted-foreground'
-        }`}
-      >
-        <span>{value || 'Select country…'}</span>
-        <svg className={`w-4 h-4 text-muted-foreground/50 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-2xl overflow-hidden shadow-elevated z-50">
-          <div className="p-2 border-b border-border">
-            <input
-              type="text" value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search…"
-              autoFocus
-              className="w-full bg-background border border-input text-foreground text-sm px-3 py-2 rounded-xl outline-none placeholder-muted-foreground/50"
-              onClick={e => e.stopPropagation()}
-            />
-          </div>
-          <div className="max-h-52 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-muted-foreground">No results</p>
-            ) : filtered.map(c => (
-              <button key={c} type="button"
-                onClick={() => { onChange(c); setOpen(false); }}
-                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                  c === value ? 'bg-accent/10 text-accent font-semibold' : 'text-foreground hover:bg-secondary'
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="w-full h-12 rounded-xl bg-background border border-input text-sm text-foreground px-3 outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors appearance-none"
+    >
+      <option value="">{placeholder}</option>
+      {sizes.map(s => (
+        <option key={s} value={s}>
+          {formatSizeLabel(s, system)}
+        </option>
+      ))}
+    </select>
   );
 }
 
-// ─── Sidebar step list ────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 3;
-const STEP_LABELS  = ['You', 'Your feet', 'Photo'];
-const STEP_SUBLABELS = ['Personal details & location', 'Shoe sizes', 'Optional'];
-
-function SidebarSteps({ step }: { step: number }) {
-  return (
-    <nav className="flex flex-col">
-      {STEP_LABELS.map((label, i) => {
-        const done    = i + 1 < step;
-        const current = i + 1 === step;
-        return (
-          <div key={label} className="flex gap-4">
-            {/* Circle + connector */}
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 border-2 transition-all duration-300 ${
-                  done    ? 'gradient-warm border-transparent text-accent-foreground' :
-                  current ? 'border-accent bg-transparent text-accent' :
-                            'border-border text-muted-foreground/40'
-                }`}
-              >
-                {done ? (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : i + 1}
-              </div>
-              {i < TOTAL_STEPS - 1 && (
-                <div className={`w-px flex-1 my-1.5 min-h-[36px] transition-colors duration-500 ${done ? 'bg-accent' : 'bg-border'}`} />
-              )}
-            </div>
-            {/* Text */}
-            <div className={`pt-1 ${i < TOTAL_STEPS - 1 ? 'pb-10' : ''}`}>
-              <p className={`text-sm leading-tight transition-colors ${
-                current ? 'text-foreground font-semibold' : done ? 'text-muted-foreground' : 'text-muted-foreground/40'
-              }`}>{label}</p>
-              {current && (
-                <p className="text-xs text-muted-foreground/60 mt-0.5">{STEP_SUBLABELS[i]}</p>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </nav>
-  );
+interface FormState {
+  name: string;
+  email: string;
+  password: string;
+  location: string;
+  sizeSystem: SizeSystem;
+  leftFootSize: string;
+  rightFootSize: string;
+  isAmputee: boolean;
+  amputeeSide: '' | 'left' | 'right';
+  neededFootSize: string;
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-
-export default function SignUpPage() {
+export default function SignupPage() {
   const router = useRouter();
 
-  const [checking,  setChecking]  = useState(true);
-  const [step,      setStep]      = useState(1);
-  const [direction, setDirection] = useState<'right'|'left'>('right');
-  const [animKey,   setAnimKey]   = useState(0);
-  const [form,      setForm]      = useState<FormState>(INIT);
-  const [errors,    setErrors]    = useState<Errors>({});
-  const [showPass,  setShowPass]  = useState(false);
-  const [showConf,  setShowConf]  = useState(false);
-  const [loading,   setLoading]   = useState(false);
-  const [done,      setDone]      = useState(false);
-  const [photoUrl,  setPhotoUrl]  = useState<string|null>(null);
-  const [photoFile, setPhotoFile] = useState<File|null>(null);
+  const [step, setStep]       = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
   const [authError, setAuthError] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  // ── OTP state ──────────────────────────────────────────────────────────────
-  const [otpMode,    setOtpMode]    = useState(false);
-  const [otpMethod,  setOtpMethod]  = useState<'email'|null>(null);
-  const [otp,        setOtp]        = useState(['','','','','','']);
-  const [otpError,   setOtpError]   = useState<string | null>(null);
-  const [otpSuccess, setOtpSuccess] = useState(false);
-  const [resendSecs, setResendSecs] = useState(0);
-  const otpInputs = useRef<(HTMLInputElement|null)[]>([]);
+  const [form, setForm] = useState<FormState>({
+    name: '', email: '', password: '', location: '',
+    sizeSystem: 'UK',
+    leftFootSize: '', rightFootSize: '',
+    isAmputee: false,
+    amputeeSide: '',
+    neededFootSize: '',
+  });
 
-  // Redirect already-logged-in users away from signup
+  // Detect locale-preferred size system on mount
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.replace('/app');
-      } else {
-        setChecking(false);
-      }
-    });
-  }, [router]);
-
-  const startResendTimer = useCallback(() => {
-    setResendSecs(30);
-    const id = setInterval(() => {
-      setResendSecs(s => { if (s <= 1) { clearInterval(id); return 0; } return s - 1; });
-    }, 1000);
+    setForm(p => ({ ...p, sizeSystem: detectSizeSystem() }));
   }, []);
 
-  const chooseOtpMethod = () => {
-    setOtpMethod('email');
-    setOtp(['','','','','','']);
-    setOtpError(null);
-    startResendTimer();
-    setTimeout(() => otpInputs.current[0]?.focus(), 100);
+  const update = (key: keyof FormState, value: string | boolean) =>
+    setForm(p => ({ ...p, [key]: value }));
+
+  const changeSizeSystem = (sys: SizeSystem) => {
+    setForm(p => ({
+      ...p,
+      sizeSystem: sys,
+      leftFootSize: '',
+      rightFootSize: '',
+      neededFootSize: '',
+    }));
   };
 
-  const handleOtpInput = (i: number, val: string) => {
-    if (!/^[0-9]?$/.test(val)) return;
-    const next = [...otp];
-    next[i] = val;
-    setOtp(next);
-    setOtpError(null);
-    if (val && i < 5) otpInputs.current[i + 1]?.focus();
-    // Auto-verify when all 8 filled
-    if (next.every(d => d !== '') && val) {
-      verifyOtp(next);
+  // Step 1 → Step 2
+  function handleStep1(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!form.name || !form.email || !form.password || !form.location) {
+      setError('Please fill in all fields.');
+      return;
     }
-  };
-
-  const handleOtpKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !otp[i] && i > 0) {
-      otpInputs.current[i - 1]?.focus();
+    if (form.password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
     }
-  };
+    setStep(2);
+  }
 
-  const handleOtpPaste = (e: React.ClipboardEvent) => {
-    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (text.length === 6) {
-      const next = text.split('');
-      setOtp(next);
-      setOtpError(null);
-      setTimeout(() => verifyOtp(next), 50);
+  // Step 2 → submit to Supabase
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+
+    if (form.isAmputee) {
+      if (!form.amputeeSide || !form.neededFootSize) {
+        setError('Please select which foot you need and its size.');
+        return;
+      }
+    } else {
+      if (!form.leftFootSize || !form.rightFootSize) {
+        setError('Please select both foot sizes.');
+        return;
+      }
     }
-  };
 
-  const verifyOtp = async (digits: string[]) => {
-    const code = digits.join('');
-    if (code.length < 6) return;
+    setLoading(true);
+    setAuthError('');
 
-    const result = await supabase.auth.verifyOtp({ email: form.email, token: code, type: 'signup' });
+    // Convert sizes to UK canonical for storage
+    const leftUK   = form.isAmputee ? null : toUKCanonical(form.leftFootSize, form.sizeSystem);
+    const rightUK  = form.isAmputee ? null : toUKCanonical(form.rightFootSize, form.sizeSystem);
+    const neededUK = form.isAmputee ? toUKCanonical(form.neededFootSize, form.sizeSystem) : null;
 
-    if (result.error) {
-      setOtpError('Wrong code — try again');
-      setOtp(['','','','','','']);
-      setTimeout(() => otpInputs.current[0]?.focus(), 50);
+    const { data, error: signUpErr } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: {
+        data: {
+          full_name:       form.name,
+          location:        form.location,
+          left_foot_size:  leftUK,
+          right_foot_size: rightUK,
+          is_amputee:      form.isAmputee,
+          amputee_side:    form.amputeeSide || null,
+          needed_foot_size: neededUK,
+          size_system:     form.sizeSystem,
+        },
+      },
+    });
+
+    if (signUpErr) {
+      setAuthError(signUpErr.message);
+      setLoading(false);
       return;
     }
 
-    const userId = result.data.user?.id;
-    if (userId) {
-      // Insert user row
-      const location = [form.city, form.country].filter(Boolean).join(', ');
-      await supabase.from('users').insert({
-        id:             userId,
-        name:           [form.firstName, form.lastName].filter(Boolean).join(' '),
-        email:          form.email,
-        foot_size_left:  form.leftSize  || null,
-        foot_size_right: form.rightSize || null,
-        location:       location || null,
-      });
-
-      // Upload avatar if provided
-      if (photoFile) {
-        const ext  = photoFile.name.split('.').pop() ?? 'jpg';
-        const path = `${userId}/avatar.${ext}`;
-        const { data: stored } = await supabase.storage
-          .from('avatars')
-          .upload(path, photoFile, { upsert: true });
-        if (stored) {
-          const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-          await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', userId);
-        }
-      }
+    if (data.session) {
+      router.replace('/app');
+    } else {
+      // Email confirmation required
+      router.replace('/login?confirmed=1');
     }
-
-    setOtpSuccess(true);
-    setTimeout(() => router.replace('/app'), 1200);
-  };
-
-  const submitOtp = () => verifyOtp(otp);
-
-  const handleGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${location.origin}/auth/callback` },
-    });
-  };
-
-  const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
-    setForm(f => ({ ...f, [k]: v }));
-
-  // ── City / country validation ──────────────────────────────────────────────
-  const [cityValidating,      setCityValidating]      = useState(false);
-  const [cityValidationError, setCityValidationError] = useState<string | null>(null);
-
-  const checkCityCountry = useCallback(async (city: string, country: string) => {
-    if (!city.trim() || !country) { setCityValidationError(null); return; }
-    const code = COUNTRY_CODES[country];
-    if (!code) return;
-    setCityValidating(true);
-    setCityValidationError(null);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city.trim())}&countrycodes=${code}&format=json&limit=1`,
-        { headers: { 'Accept-Language': 'en' } },
-      );
-      const data = await res.json();
-      if (!Array.isArray(data) || data.length === 0) {
-        setCityValidationError(`"${city}" not found in ${country}`);
-      }
-    } catch {
-      // Network error — don't block the user
-    } finally {
-      setCityValidating(false);
-    }
-  }, []);
-
-  const handleCityBlur = () => {
-    if (form.city.trim() && form.country) checkCityCountry(form.city, form.country);
-  };
-
-  const handleCountryChange = (country: string) => {
-    set('country', country);
-    if (form.city.trim()) checkCityCountry(form.city, country);
-  };
-
-  // ── Navigation ────────────────────────────────────────────────────────────
-  const advance = (n: number, dir: 'right'|'left') => {
-    setDirection(dir); setAnimKey(k => k + 1); setStep(n);
-  };
-
-  const goNext = () => {
-    const e = validate(step, form);
-    if (Object.keys(e).length) { setErrors(e); return; }
-    if (step === 1) {
-      if (cityValidating) return;
-      if (cityValidationError) { setErrors({ city: cityValidationError }); return; }
-    }
-    setErrors({}); advance(step + 1, 'right');
-  };
-
-  const goBack = () => { setErrors({}); advance(step - 1, 'left'); };
-
-  const handleSubmit = async () => {
-    setLoading(true);
-    setAuthError('');
-    const { error } = await supabase.auth.signUp({
-      email:    form.email,
-      password: form.password,
-      options:  { data: { first_name: form.firstName, last_name: form.lastName } },
-    });
-    setLoading(false);
-    if (error) { setAuthError(error.message); return; }
-    chooseOtpMethod();
-    setOtpMode(true);
-  };
-
-  const handleSystemChange = (sys: SizeSystem) => {
-    setForm(f => {
-      const l = remapSize(f.leftSize, f.sizeSystem, sys, f.gender);
-      const r = f.sameSize ? l : remapSize(f.rightSize, f.sizeSystem, sys, f.gender);
-      return { ...f, sizeSystem: sys, leftSize: l, rightSize: r };
-    });
-  };
-
-  const handleGenderChange = (g: Gender) =>
-    setForm(f => ({ ...f, gender: g, leftSize: null, rightSize: null }));
-
-  const applyPhoto = (file: File) => {
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
-    setPhotoUrl(URL.createObjectURL(file));
-    setPhotoFile(file);
-  };
-
-  const removePhoto = () => {
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
-    setPhotoUrl(null);
-    setPhotoFile(null);
-    if (fileRef.current) fileRef.current.value = '';
-  };
-
-  const sizeRange = getSizeRange(form.sizeSystem, form.gender);
-  const leftConv  = form.leftSize  !== null ? findConvExact(form.leftSize,  form.sizeSystem, form.gender) : null;
-  const rightConv = form.rightSize !== null ? findConvExact(form.rightSize, form.sizeSystem, form.gender) : null;
-
-  const animStyle: React.CSSProperties = {
-    animation: `${direction === 'right' ? 'step-enter-right' : 'step-enter-left'} 0.28s ease-out both`,
-  };
-
-  const segBtn = (active: boolean) =>
-    `px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-      active
-        ? 'bg-card shadow-card text-foreground font-semibold rounded-lg'
-        : 'text-muted-foreground hover:text-foreground rounded-lg'
-    }`;
-
-  const chipCls = (active: boolean) =>
-    `px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-all cursor-pointer ${
-      active
-        ? 'border-accent bg-accent/10 text-accent'
-        : 'border-border bg-background text-muted-foreground hover:border-accent/50'
-    }`;
-
-  if (checking) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="flex gap-1.5">
-        {[0,1,2].map(i => (
-          <div key={i} className="w-2 h-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-        ))}
-      </div>
-    </div>
-  );
+  }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
 
-      {/* ══ Sidebar ══════════════════════════════════════════════════════════ */}
-      <aside className="hidden lg:flex w-72 xl:w-80 flex-shrink-0 flex-col bg-secondary/30 border-r border-border px-8 py-10 sticky top-0 h-screen">
-        {/* Logo */}
-        <div className="flex items-center justify-between mb-14">
-          <a href="/" aria-label="Home">
-            <span className="font-display text-xl font-extrabold tracking-tight">
-              <span className="text-foreground">myother</span><span className="text-accent">pair</span>
-            </span>
-          </a>
-        </div>
+      {/* Top bar */}
+      <div className="px-4 py-4 flex items-center justify-between max-w-lg mx-auto w-full">
+        <button
+          onClick={() => (step === 1 ? router.push('/') : setStep(1))}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <span className="font-display text-sm font-bold text-foreground tracking-[0.08em] uppercase">
+          myotherpair
+        </span>
+        <div className="w-14" />
+      </div>
 
-        {/* Step list */}
-        <div className="flex-1">
-          <SidebarSteps step={done ? TOTAL_STEPS + 1 : step} />
-        </div>
+      <div className="flex-1 flex items-start justify-center px-4 pt-4 pb-8">
+        <div className="w-full max-w-sm animate-fade-in">
 
-        {/* Footer tagline */}
-        <p className="text-xs text-muted-foreground/50 leading-relaxed">
-          Every shoe deserves a match.
-        </p>
-      </aside>
-
-      {/* ══ Main content ═════════════════════════════════════════════════════ */}
-      <main className="flex-1 flex flex-col min-h-screen">
-
-        {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center justify-between px-6 py-5 border-b border-border bg-card">
-          <a href="/" aria-label="Home">
-            <span className="font-display text-xl font-extrabold tracking-tight">
-              <span className="text-foreground">myother</span><span className="text-accent">pair</span>
-            </span>
-          </a>
-        </div>
-
-        {/* Mobile progress bar */}
-        {!done && (
-          <div className="lg:hidden px-6 pt-5 pb-1">
-            <div className="flex justify-between mb-2">
-              {STEP_LABELS.map((label, i) => (
-                <span key={label} className={`text-[11px] font-semibold ${i + 1 <= step ? 'text-accent' : 'text-muted-foreground/40'}`}>
-                  {i + 1}. {label}
-                </span>
-              ))}
-            </div>
-            <div className="h-1 bg-border rounded-full overflow-hidden">
-              <div className="h-full rounded-full gradient-warm transition-all duration-500 ease-out"
-                style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
-            </div>
+          {/* Progress bar */}
+          <div className="flex gap-2 mb-8">
+            <div className="flex-1 h-1 rounded-full bg-accent" />
+            <div
+              className={`flex-1 h-1 rounded-full transition-colors duration-300 ${
+                step === 2 ? 'bg-accent' : 'bg-muted'
+              }`}
+            />
           </div>
-        )}
 
-        {/* ── Form region ── */}
-        <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 md:px-16 xl:px-24 py-12">
-          <div className="w-full max-w-2xl mx-auto">
+          <span className="text-[10px] font-bold text-accent uppercase tracking-widest mb-2 block">
+            Step {step} of 2
+          </span>
+          <h1 className="font-display text-3xl font-bold text-foreground mb-1 leading-tight">
+            {step === 1 ? 'Create your account' : 'About your feet'}
+          </h1>
+          <p className="text-sm text-muted-foreground mb-8">
+            {step === 1
+              ? 'Join the community for perfectly matched shoes.'
+              : 'So we can find your ideal match.'}
+          </p>
 
-            {otpMode ? (
-              /* ── OTP Verification ─────────────────────────────────────── */
-              <div className="flex flex-col items-center text-center py-12 max-w-md mx-auto w-full"
-                style={{ animation: 'step-enter-right 0.35s ease-out' }}>
+          {/* ── Step 1: account details ──────────────────────────────────── */}
+          {step === 1 && (
+            <form onSubmit={handleStep1} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground font-medium block">Full name</label>
+                <input
+                  value={form.name}
+                  onChange={e => update('name', e.target.value)}
+                  placeholder="Your name"
+                  required
+                  className="w-full bg-background border border-input text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-12"
+                />
+              </div>
 
-                {otpSuccess ? (
-                  /* Success */
-                  <>
-                    <div className="w-24 h-24 rounded-full flex items-center justify-center mb-8"
-                      style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)', animation: 'pop-in 0.5s cubic-bezier(0.175,0.885,0.32,1.275) both' }}>
-                      <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <h2 className="font-display text-3xl font-extrabold text-foreground mb-3">Verified!</h2>
-                    <p className="text-muted-foreground mb-2">Taking you to your dashboard…</p>
-                    <div className="flex gap-1 mt-4">
-                      {[0,1,2].map(i => (
-                        <div key={i} className="w-2 h-2 rounded-full bg-green-500 animate-bounce"
-                          style={{ animationDelay: `${i * 0.15}s` }} />
-                      ))}
-                    </div>
-                  </>
-                ) : otpMethod === null ? null : (
-                  /* OTP input */
-                  <>
-                    <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-8 text-3xl">
-                      📧
-                    </div>
-                    <h2 className="font-display text-3xl font-extrabold text-foreground mb-3">Enter code</h2>
-                    <p className="text-muted-foreground mb-8 leading-relaxed max-w-xs text-sm">
-                      Sent to {form.email || 'your email'}
-                    </p>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground font-medium block">Email</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={e => update('email', e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  className="w-full bg-background border border-input text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-12"
+                />
+              </div>
 
-                    {/* 6-digit boxes */}
-                    <div
-                      className="flex gap-2 sm:gap-3 mb-6"
-                      style={otpError ? { animation: 'shake 0.4s ease-out' } : {}}
-                      onPaste={handleOtpPaste}
-                    >
-                      {otp.map((digit, i) => (
-                        <input
-                          key={i}
-                          ref={el => { otpInputs.current[i] = el; }}
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={1}
-                          value={digit}
-                          onChange={e => handleOtpInput(i, e.target.value)}
-                          onKeyDown={e => handleOtpKeyDown(i, e)}
-                          className={`text-center text-xl font-bold rounded-2xl border bg-background text-foreground outline-none transition-all ${
-                            otpError
-                              ? 'border-destructive bg-destructive/10 text-destructive'
-                              : digit
-                                ? 'border-accent bg-accent/10'
-                                : 'border-input focus:border-accent'
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground font-medium block">Password</label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={e => update('password', e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                  className="w-full bg-background border border-input text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-12"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground font-medium block">Location</label>
+                <input
+                  value={form.location}
+                  onChange={e => update('location', e.target.value)}
+                  placeholder="e.g. London, UK"
+                  required
+                  className="w-full bg-background border border-input text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-12"
+                />
+              </div>
+
+              {error && (
+                <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-2.5">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full gradient-warm text-accent-foreground text-sm font-semibold rounded-xl flex items-center justify-center gap-2 shadow-card hover:shadow-card-hover transition-all active:scale-[.98]"
+                style={{ height: 52 }}
+              >
+                Continue <ArrowRight className="h-4 w-4" />
+              </button>
+
+              <p className="text-sm text-muted-foreground text-center mt-4">
+                Already have an account?{' '}
+                <Link href="/login" className="text-accent font-semibold hover:underline">
+                  Log in
+                </Link>
+              </p>
+            </form>
+          )}
+
+          {/* ── Step 2: foot sizes ───────────────────────────────────────── */}
+          {step === 2 && (
+            <form onSubmit={handleSubmit} className="space-y-4">
+
+              {/* Size system selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                  Sizing system <ConversionTooltip />
+                </label>
+                <SizeSystemToggle value={form.sizeSystem} onChange={changeSizeSystem} />
+              </div>
+
+              {/* Amputee toggle */}
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50 border border-border/30">
+                <input
+                  id="amputee"
+                  type="checkbox"
+                  checked={form.isAmputee}
+                  onChange={e => {
+                    const v = e.target.checked;
+                    setForm(p => ({
+                      ...p,
+                      isAmputee: v,
+                      amputeeSide: '',
+                      neededFootSize: '',
+                      leftFootSize: '',
+                      rightFootSize: '',
+                    }));
+                  }}
+                  className="w-4 h-4 accent-[hsl(var(--accent))] cursor-pointer"
+                />
+                <div>
+                  <label htmlFor="amputee" className="text-sm text-foreground cursor-pointer font-medium">
+                    I am an amputee
+                  </label>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    We&apos;ll only ask for the foot you need a shoe for
+                  </p>
+                </div>
+              </div>
+
+              {/* Amputee flow */}
+              {form.isAmputee ? (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground font-medium">
+                      Which foot do you need a shoe for?
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(['left', 'right'] as const).map(side => (
+                        <button
+                          key={side}
+                          type="button"
+                          onClick={() => update('amputeeSide', side)}
+                          className={`h-12 rounded-xl text-sm font-semibold border transition-all duration-200 flex items-center justify-center gap-2 ${
+                            form.amputeeSide === side
+                              ? 'bg-accent text-accent-foreground border-accent shadow-sm'
+                              : 'bg-muted/50 text-muted-foreground border-border/30 hover:border-border'
                           }`}
-                          style={{ width: 'clamp(40px, 12vw, 52px)', height: 'clamp(48px, 14vw, 60px)' }}
-                        />
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              side === 'left' ? 'bg-left-shoe' : 'bg-right-shoe'
+                            }`}
+                          />
+                          {side.charAt(0).toUpperCase() + side.slice(1)} foot
+                        </button>
                       ))}
                     </div>
-
-                    {otpError && (
-                      <p className="text-sm text-destructive mb-6" style={{ animation: 'pop-in 0.2s ease-out' }}>
-                        {otpError}
-                      </p>
-                    )}
-
-                    <button type="button" onClick={submitOtp}
-                      disabled={otp.some(d => !d)}
-                      className="gradient-warm w-full max-w-xs py-3.5 text-sm font-bold text-accent-foreground rounded-2xl transition-all disabled:opacity-40 active:scale-[.97] mb-6">
-                      Verify
-                    </button>
-
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      {resendSecs > 0 ? (
-                        <span>Resend in {resendSecs}s</span>
-                      ) : (
-                        <>
-                          <span>Didn't get it?</span>
-                          <button type="button" onClick={() => startResendTimer()}
-                            className="text-accent hover:text-accent/80 font-semibold transition-colors">
-                            Resend
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                  </>
-                )}
-              </div>
-            ) : done ? (
-              /* ── Legacy success (not reached now) ─────────────────────── */
-              <div className="flex flex-col items-center text-center py-12" style={{ animation: 'step-enter-right 0.4s ease-out' }}>
-                <div className="w-24 h-24 rounded-full flex items-center justify-center mb-8"
-                  style={{ background: 'linear-gradient(to bottom right,#22c55e,#16a34a)', animation: 'pop-in 0.5s cubic-bezier(0.175,0.885,0.32,1.275) 0.1s both' }}>
-                  <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h2 className="font-display text-4xl font-extrabold text-foreground mb-4">You're in.</h2>
-                <p className="text-lg text-muted-foreground mb-10 leading-relaxed">Your account is ready. Time to find your pair.</p>
-                <a href="/app"
-                  className="gradient-warm inline-flex items-center gap-2 text-accent-foreground text-sm font-bold px-8 py-4 rounded-2xl hover:opacity-90 active:scale-[.98] transition-all">
-                  Find my match
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
-                </a>
-              </div>
-            ) : (
-              <div key={animKey} style={animStyle} className="flex flex-col gap-10">
-
-                {/* ════════ STEP 1 — About you ════════ */}
-                {step === 1 && (
-                  <>
-                    <div>
-                      <h1 className="font-display text-3xl font-extrabold text-foreground mb-2">About you</h1>
-                      <p className="text-base text-muted-foreground">Let's start with the basics.</p>
-                    </div>
-
-                    {/* Google sign-up */}
-                    <div className="flex flex-col gap-4">
-                      <button type="button" onClick={handleGoogle}
-                        className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-800 text-sm font-semibold py-3.5 rounded-2xl transition-all active:scale-[.98] shadow-sm">
-                        <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                        </svg>
-                        Continue with Google
-                      </button>
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1 h-px bg-border" />
-                        <span className="text-xs text-muted-foreground/60">or with email</span>
-                        <div className="flex-1 h-px bg-border" />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-6">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="firstName" className={lbl}>First name</label>
-                          <input id="firstName" type="text" value={form.firstName}
-                            onChange={e => set('firstName', e.target.value)}
-                            placeholder="Alex" className={field(!!errors.firstName)} />
-                          {errors.firstName && <p className={errMsg}>{errors.firstName}</p>}
-                        </div>
-                        <div>
-                          <label htmlFor="lastName" className={lbl}>Last name</label>
-                          <input id="lastName" type="text" value={form.lastName}
-                            onChange={e => set('lastName', e.target.value)}
-                            placeholder="Johnson" className={field(!!errors.lastName)} />
-                          {errors.lastName && <p className={errMsg}>{errors.lastName}</p>}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor="email" className={lbl}>Email address</label>
-                        <input id="email" type="email" value={form.email}
-                          onChange={e => set('email', e.target.value)}
-                          placeholder="you@email.com" className={field(!!errors.email)} />
-                        {errors.email && <p className={errMsg}>{errors.email}</p>}
-                      </div>
-
-                      <div className="flex flex-col gap-4">
-                        {/* Password */}
-                        <div>
-                          <label htmlFor="password" className={lbl}>Password</label>
-                          <div className="relative">
-                            <input id="password" type={showPass ? 'text' : 'password'} value={form.password}
-                              onChange={e => set('password', e.target.value)} placeholder="Create a strong password"
-                              className={field(!!errors.password) + ' pr-11'} />
-                            <button type="button" onClick={() => setShowPass(v => !v)}
-                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors" aria-label="Toggle password">
-                              <EyeIcon open={showPass} />
-                            </button>
-                          </div>
-
-                          {/* Strength bar */}
-                          {form.password.length > 0 && (() => {
-                            const score = passwordScore(form.password);
-                            const color = STRENGTH_COLORS[score];
-                            return (
-                              <div className="mt-2.5">
-                                <div className="flex gap-1 mb-1.5">
-                                  {[1,2,3,4,5].map(i => (
-                                    <div key={i} className="flex-1 h-1 rounded-full transition-all duration-300"
-                                      style={{ background: i <= score ? color : 'var(--border)' }} />
-                                  ))}
-                                </div>
-                                <p className="text-xs font-semibold transition-colors" style={{ color }}>{STRENGTH_LABELS[score]}</p>
-                              </div>
-                            );
-                          })()}
-
-                          {/* Checklist */}
-                          {form.password.length > 0 && (
-                            <ul className="mt-2.5 flex flex-col gap-1">
-                              {PW_RULES.map(r => {
-                                const ok = r.test(form.password);
-                                return (
-                                  <li key={r.label} className={`flex items-center gap-2 text-xs transition-colors ${ok ? 'text-muted-foreground' : 'text-muted-foreground/40'}`}>
-                                    <span className={`flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center transition-all ${ok ? 'bg-match-green/20' : 'bg-border'}`}>
-                                      {ok && (
-                                        <svg className="w-2 h-2 text-match-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                      )}
-                                    </span>
-                                    {r.label}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-
-                          {errors.password && <p className={errMsg}>{errors.password}</p>}
-                        </div>
-
-                        {/* Confirm */}
-                        <div>
-                          <label htmlFor="confirm" className={lbl}>Confirm password</label>
-                          <div className="relative">
-                            <input id="confirm" type={showConf ? 'text' : 'password'} value={form.confirm}
-                              onChange={e => set('confirm', e.target.value)} placeholder="Repeat password"
-                              className={field(!!errors.confirm) + ' pr-11'} />
-                            <button type="button" onClick={() => setShowConf(v => !v)}
-                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors" aria-label="Toggle password">
-                              <EyeIcon open={showConf} />
-                            </button>
-                          </div>
-                          {errors.confirm && <p className={errMsg}>{errors.confirm}</p>}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="city" className={lbl}>City</label>
-                          <div className="relative">
-                            <input id="city" type="text" value={form.city}
-                              onChange={e => { set('city', e.target.value); setCityValidationError(null); }}
-                              onBlur={handleCityBlur}
-                              placeholder="New York"
-                              className={field(!!(errors.city || cityValidationError)) + (cityValidating ? ' pr-11' : '')} />
-                            {cityValidating && (
-                              <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                                <svg className="w-4 h-4 animate-spin text-muted-foreground/50" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                          {(errors.city || cityValidationError) && (
-                            <p className={errMsg}>{errors.city || cityValidationError}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className={lbl}>Country</label>
-                          <CountrySelect
-                            value={form.country}
-                            onChange={handleCountryChange}
-                            error={errors.country}
-                          />
-                          {errors.country && <p className={errMsg}>{errors.country}</p>}
-                        </div>
-                      </div>
-
-                    </div>
-                  </>
-                )}
-
-                {/* ════════ STEP 2 — Your feet ════════ */}
-                {step === 2 && (
-                  <>
-                    <div>
-                      <h1 className="font-display text-3xl font-extrabold text-foreground mb-2">Your feet</h1>
-                      <p className="text-base text-muted-foreground">This is how we find your perfect match.</p>
-                    </div>
-
-                    <div className="flex flex-col gap-8">
-                      {/* Controls */}
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <div className="flex bg-secondary rounded-xl p-1 gap-1">
-                          {(['mens','womens'] as Gender[]).map(g => (
-                            <button key={g} type="button" onClick={() => handleGenderChange(g)}
-                              className={segBtn(form.gender === g)}>
-                              {g === 'mens' ? "Men's" : "Women's"}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex bg-secondary rounded-xl p-1 gap-1 ml-auto">
-                          {(['US','UK','EU'] as SizeSystem[]).map(sys => (
-                            <button key={sys} type="button" onClick={() => handleSystemChange(sys)}
-                              className={segBtn(form.sizeSystem === sys)}>
-                              {sys}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Toggles — amputee + same size */}
-                      <div className="flex flex-col gap-3 -mt-2">
-                        {/* Amputee toggle */}
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <div className="relative flex-shrink-0">
-                            <input type="checkbox" checked={form.amputee} className="sr-only"
-                              onChange={e => setForm(f => ({
-                                ...f, amputee: e.target.checked,
-                                sameSize: false,
-                                leftSize: null, rightSize: null,
-                              }))} />
-                            <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-all ${
-                              form.amputee ? 'gradient-warm border-transparent' : 'bg-background border-border'
-                            }`}>
-                              {form.amputee && (
-                                <svg className="w-3 h-3 text-accent-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </div>
-                          </div>
-                          <span className="text-sm text-foreground">I'm an amputee (one foot)</span>
-                        </label>
-
-                        {/* Same size — only when not amputee */}
-                        {!form.amputee && (
-                          <label className="flex items-center gap-3 cursor-pointer">
-                            <div className="relative flex-shrink-0">
-                              <input type="checkbox" checked={form.sameSize} className="sr-only"
-                                onChange={e => setForm(f => ({
-                                  ...f, sameSize: e.target.checked,
-                                  rightSize: e.target.checked ? f.leftSize : f.rightSize,
-                                }))} />
-                              <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-all ${
-                                form.sameSize ? 'gradient-warm border-transparent' : 'bg-background border-border'
-                              }`}>
-                                {form.sameSize && (
-                                  <svg className="w-3 h-3 text-accent-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                              </div>
-                            </div>
-                            <span className="text-sm text-foreground">My feet are the same size</span>
-                          </label>
-                        )}
-                      </div>
-
-                      {form.amputee ? (
-                        /* ── Amputee: which foot + single grid ── */
-                        <div className="flex flex-col gap-4">
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm text-muted-foreground">Which foot?</span>
-                            <div className="flex bg-secondary rounded-xl p-1 gap-1">
-                              {(['Left', 'Right'] as const).map(foot => (
-                                <button key={foot} type="button"
-                                  onClick={() => setForm(f => ({ ...f, amputeeFoot: foot, leftSize: null, rightSize: null }))}
-                                  className={`px-4 py-2 text-xs font-bold transition-all ${
-                                    form.amputeeFoot === foot
-                                      ? 'gradient-warm text-accent-foreground border-transparent rounded-lg'
-                                      : 'bg-background border-border text-muted-foreground hover:border-accent hover:text-accent rounded-lg'
-                                  }`}>
-                                  {foot}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-3">
-                            <p className="text-sm font-semibold text-muted-foreground">
-                              {form.amputeeFoot === 'Left' ? '🦶' : <span style={{ transform:'scaleX(-1)', display:'inline-block' }}>🦶</span>}
-                              {' '}{form.amputeeFoot} foot size
-                            </p>
-                            <SizeGrid
-                              sizes={sizeRange}
-                              selected={form.amputeeFoot === 'Left' ? form.leftSize : form.rightSize}
-                              onSelect={size => setForm(f => ({
-                                ...f,
-                                leftSize:  f.amputeeFoot === 'Left'  ? size : null,
-                                rightSize: f.amputeeFoot === 'Right' ? size : null,
-                              }))}
-                              error={form.amputeeFoot === 'Left' ? errors.leftSize : errors.rightSize}
-                            />
-                            {form.amputeeFoot === 'Left'  && leftConv  && <ConvBadge row={leftConv} />}
-                            {form.amputeeFoot === 'Right' && rightConv && <ConvBadge row={rightConv} />}
-                          </div>
-                        </div>
-                      ) : (
-                        /* ── Normal: two feet side by side ── */
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          <div className="flex flex-col gap-3">
-                            <p className="text-sm font-semibold text-muted-foreground">🦶 Left foot</p>
-                            <SizeGrid sizes={sizeRange} selected={form.leftSize}
-                              onSelect={size => setForm(f => ({ ...f, leftSize: size, rightSize: f.sameSize ? size : f.rightSize }))}
-                              error={errors.leftSize} />
-                            {leftConv && <ConvBadge row={leftConv} />}
-                          </div>
-                          <div className="flex flex-col gap-3" style={{ opacity: form.sameSize ? 0.4 : 1, pointerEvents: form.sameSize ? 'none' : 'auto' }}>
-                            <p className="text-sm font-semibold text-muted-foreground">
-                              <span style={{ transform:'scaleX(-1)', display:'inline-block', marginRight:'4px' }}>🦶</span>
-                              Right foot
-                            </p>
-                            <SizeGrid sizes={sizeRange} selected={form.rightSize}
-                              onSelect={size => set('rightSize', size)}
-                              error={errors.rightSize} />
-                            {rightConv && <ConvBadge row={rightConv} />}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* "Sizes match" banner — shown when same size is checked and a size is selected */}
-                      {form.sameSize && form.leftSize !== null && (
-                        <div className="bg-match-green/10 border border-match-green/20 rounded-xl p-3 text-match-green text-sm">
-                          Both feet set to size {fmt(form.leftSize)} {form.sizeSystem}
-                        </div>
-                      )}
-
-                      {/* Brands */}
-                      <div>
-                        <p className="text-sm font-semibold text-muted-foreground mb-3">Preferred brands</p>
-                        <div className="flex flex-wrap gap-2">
-                          {BRANDS.map(brand => {
-                            const on = form.brands.includes(brand);
-                            return (
-                              <button key={brand} type="button"
-                                onClick={() => set('brands', on ? form.brands.filter(b => b !== brand) : [...form.brands, brand])}
-                                className={chipCls(on)}>
-                                {brand}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {errors.brands && <p className={errMsg}>{errors.brands}</p>}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* ════════ STEP 3 — Photo ════════ */}
-                {step === 3 && (
-                  <>
-                    <div>
-                      <h1 className="font-display text-3xl font-extrabold text-foreground mb-2">Profile photo</h1>
-                      <p className="text-base text-muted-foreground">Optional — you can always add one later.</p>
-                    </div>
-
-                    <div className="flex flex-col gap-6">
-                      <div
-                        className="w-full rounded-3xl border-2 border-dashed border-border bg-secondary/50 flex flex-col items-center justify-center gap-5 py-20 cursor-pointer group hover:bg-secondary transition-all"
-                        onClick={() => fileRef.current?.click()}
-                        onDragOver={e => e.preventDefault()}
-                        onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f?.type.startsWith('image/')) applyPhoto(f); }}
-                      >
-                        {photoUrl ? (
-                          <div className="flex flex-col items-center gap-4">
-                            <img src={photoUrl} alt="Preview" className="w-32 h-32 rounded-full object-cover ring-4 ring-border" />
-                            <p className="text-sm text-muted-foreground">Click to change</p>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-4 pointer-events-none">
-                            <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center group-hover:bg-secondary/80 transition-colors">
-                              <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm text-muted-foreground">
-                                Drag & drop or <span className="text-accent font-semibold">choose a file</span>
-                              </p>
-                              <p className="text-xs text-muted-foreground/50 mt-1">JPEG, PNG or WebP · Max 5 MB</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {photoUrl && (
-                        <button type="button" onClick={removePhoto} className="text-xs text-muted-foreground/50 hover:text-destructive transition-colors text-center">
-                          Remove photo
-                        </button>
-                      )}
-
-                      <input ref={fileRef} type="file" accept="image/*" className="sr-only"
-                        onChange={e => { const f = e.target.files?.[0]; if (f) applyPhoto(f); }} />
-                    </div>
-                  </>
-                )}
-
-                {/* ── Navigation ──────────────────────────────────────────── */}
-                <div className="flex items-center justify-between pt-8 border-t border-border">
-                  {step > 1 ? (
-                    <button type="button" onClick={goBack}
-                      className="flex items-center gap-2 px-5 py-3 text-sm font-semibold text-muted-foreground border border-border hover:border-foreground hover:text-foreground rounded-2xl transition-all">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
-                      </svg>
-                      Back
-                    </button>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Have an account?{' '}
-                      <a href="/login" className="font-semibold text-accent hover:text-accent/80 transition-colors">Sign in</a>
-                    </p>
-                  )}
-
-                  {authError && step === TOTAL_STEPS && (
-                    <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-2.5 mb-2">{authError}</p>
-                  )}
-
-                  <div className="flex items-center gap-4">
-                    {step === TOTAL_STEPS && !photoUrl && (
-                      <button type="button" onClick={handleSubmit} disabled={loading}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                        Skip for now
-                      </button>
-                    )}
-                    {step < TOTAL_STEPS ? (
-                      <button type="button" onClick={goNext}
-                        className="gradient-warm flex items-center gap-2 px-8 py-3.5 text-sm font-bold text-accent-foreground rounded-2xl active:scale-[.97] transition-all">
-                        Continue
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                        </svg>
-                      </button>
-                    ) : (
-                      <button type="button" onClick={handleSubmit} disabled={loading}
-                        className="gradient-warm flex items-center gap-2 px-8 py-3.5 text-sm font-bold text-accent-foreground rounded-2xl active:scale-[.97] transition-all disabled:opacity-60">
-                        {loading ? (
-                          <>
-                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                            </svg>
-                            Creating account…
-                          </>
-                        ) : 'Create my account'}
-                      </button>
-                    )}
                   </div>
-                </div>
 
-              </div>
-            )}
-          </div>
+                  {form.amputeeSide && (
+                    <div className="space-y-1.5 animate-fade-in">
+                      <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            form.amputeeSide === 'left' ? 'bg-left-shoe' : 'bg-right-shoe'
+                          }`}
+                        />
+                        {form.amputeeSide.charAt(0).toUpperCase() + form.amputeeSide.slice(1)} foot
+                        size
+                      </label>
+                      <SizeSelect
+                        system={form.sizeSystem}
+                        value={form.neededFootSize}
+                        onChange={v => update('neededFootSize', v)}
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-left-shoe" />
+                        Left foot
+                      </label>
+                      <SizeSelect
+                        system={form.sizeSystem}
+                        value={form.leftFootSize}
+                        onChange={v => update('leftFootSize', v)}
+                        placeholder="Size"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-right-shoe" />
+                        Right foot
+                      </label>
+                      <SizeSelect
+                        system={form.sizeSystem}
+                        value={form.rightFootSize}
+                        onChange={v => update('rightFootSize', v)}
+                        placeholder="Size"
+                      />
+                    </div>
+                  </div>
+
+                  {form.leftFootSize && form.rightFootSize && form.leftFootSize !== form.rightFootSize && (
+                    <div className="p-4 rounded-xl bg-match-green/[0.08] border border-match-green/20 animate-fade-in">
+                      <p className="text-xs font-semibold text-match-green flex items-center gap-2">
+                        <span>✨</span> Great — myotherpair is built for you!
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        We&apos;ll help you find single shoes that match each foot perfectly.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {(error || authError) && (
+                <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-2.5">
+                  {error || authError}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full gradient-warm text-accent-foreground text-sm font-semibold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[.98] shadow-card hover:shadow-card-hover flex items-center justify-center gap-2"
+                style={{ height: 52 }}
+              >
+                {loading ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Creating account…
+                  </>
+                ) : (
+                  'Create account'
+                )}
+              </button>
+            </form>
+          )}
+
         </div>
-      </main>
+      </div>
     </div>
   );
 }

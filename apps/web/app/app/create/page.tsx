@@ -4,7 +4,14 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 import { Button } from '../../components/ui/Button';
-import { ImagePlus } from 'lucide-react';
+import { ImagePlus, Info } from 'lucide-react';
+import {
+  type SizeSystem,
+  getSizes,
+  formatSizeLabel,
+  toUKCanonical,
+  detectSizeSystem,
+} from '../../../lib/sizeConversion';
 
 type Foot      = 'L' | 'R' | 'single';
 type Condition = 'new_with_tags' | 'new_without_tags' | 'excellent' | 'good' | 'fair' | 'poor';
@@ -18,23 +25,101 @@ const CONDITIONS: { value: Condition; label: string }[] = [
   { value: 'poor',             label: 'Poor'          },
 ];
 
-const UK_SIZES = ['3','3.5','4','4.5','5','5.5','6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12','13','14'];
-const BRANDS   = ['Nike','Adidas','Jordan','New Balance','Vans','Converse','Timberland','Puma','Reebok','Other'];
+const BRANDS = ['Nike','Adidas','Jordan','New Balance','Vans','Converse','Timberland','Puma','Reebok','Other'];
+
+// ─── Size system toggle ───────────────────────────────────────────────────────
+
+function SizeSystemToggle({ value, onChange }: { value: SizeSystem; onChange: (v: SizeSystem) => void }) {
+  return (
+    <div className="flex gap-1.5">
+      {(['UK', 'US', 'EU'] as SizeSystem[]).map(sys => (
+        <button
+          key={sys}
+          type="button"
+          onClick={() => onChange(sys)}
+          className={`flex-1 h-9 rounded-lg text-xs font-semibold border transition-all duration-200 ${
+            value === sys
+              ? 'bg-accent text-accent-foreground border-accent shadow-sm'
+              : 'bg-card text-muted-foreground border-border/40 hover:border-border'
+          }`}
+        >
+          {sys}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Conversion tooltip ───────────────────────────────────────────────────────
+
+function ConversionTooltip() {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex items-center">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="text-muted-foreground/40 hover:text-accent transition-colors"
+        aria-label="Size conversion chart"
+      >
+        <Info className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <div className="absolute bottom-6 left-0 z-50 w-52 bg-card border border-border/40 rounded-xl shadow-lg p-3 text-[11px] text-foreground">
+          <p className="font-semibold mb-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+            Quick reference
+          </p>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="text-muted-foreground/60">
+                <th className="text-left pb-1 font-medium">UK</th>
+                <th className="text-left pb-1 font-medium">US</th>
+                <th className="text-left pb-1 font-medium">EU</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { uk: '5', us: '6', eu: '38' },
+                { uk: '6', us: '7', eu: '39' },
+                { uk: '7', us: '8', eu: '41' },
+                { uk: '8', us: '9', eu: '42' },
+                { uk: '9', us: '10', eu: '43' },
+                { uk: '10', us: '11', eu: '44' },
+                { uk: '11', us: '12', eu: '45' },
+              ].map(r => (
+                <tr key={r.uk} className="border-t border-border/20">
+                  <td className="py-0.5">{r.uk}</td>
+                  <td className="py-0.5">{r.us}</td>
+                  <td className="py-0.5">{r.eu}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-muted-foreground/50 mt-2 text-[10px]">Mens/unisex sizing.</p>
+        </div>
+      )}
+    </span>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CreatePage() {
   const router  = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [userId,      setUserId]      = useState<string | null>(null);
-  const [submitting,  setSubmitting]  = useState(false);
-  const [error,       setError]       = useState('');
-  const [photoFile,   setPhotoFile]   = useState<File | null>(null);
-  const [photoPreview,setPhotoPreview]= useState<string | null>(null);
+  const [userId,       setUserId]       = useState<string | null>(null);
+  const [submitting,   setSubmitting]   = useState(false);
+  const [error,        setError]        = useState('');
+  const [photoFile,    setPhotoFile]    = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  const [sizeSystem, setSizeSystem] = useState<SizeSystem>('UK');
 
   const [form, setForm] = useState({
     brand:       '',
     model:       '',
-    size:        '',
+    size:        '',           // raw value in selected sizeSystem
     side:        '' as Foot | '',
     condition:   '' as Condition | '',
     price:       '',
@@ -45,6 +130,7 @@ export default function CreatePage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) setUserId(session.user.id);
     });
+    setSizeSystem(detectSizeSystem());
   }, []);
 
   const update = (key: string, value: string) =>
@@ -56,6 +142,11 @@ export default function CreatePage() {
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleSizeSystemChange = (sys: SizeSystem) => {
+    setSizeSystem(sys);
+    update('size', '');   // reset size when system changes
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,7 +166,6 @@ export default function CreatePage() {
     try {
       let photos: string[] = [];
 
-      // Upload photo
       if (photoFile) {
         const ext  = photoFile.name.split('.').pop() ?? 'jpg';
         const path = `${userId}/${Date.now()}.${ext}`;
@@ -89,11 +179,14 @@ export default function CreatePage() {
         }
       }
 
+      // Convert to UK canonical size for consistent DB storage
+      const ukSize = toUKCanonical(form.size, sizeSystem);
+
       const { error: insertErr } = await supabase.from('listings').insert({
         user_id:    userId,
         shoe_brand: form.brand,
         shoe_model: form.model,
-        size:       parseFloat(form.size),
+        size:       ukSize,
         foot_side:  form.side,
         condition:  form.condition,
         price:      parseFloat(form.price),
@@ -103,7 +196,6 @@ export default function CreatePage() {
       });
 
       if (insertErr) throw insertErr;
-
       router.push('/app/browse');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to create listing. Please try again.');
@@ -113,16 +205,20 @@ export default function CreatePage() {
 
   const selectCls = 'w-full h-11 rounded-xl bg-card border border-border/40 text-sm text-foreground px-3 outline-none focus:border-accent/50 transition-colors appearance-none';
   const inputCls  = 'w-full h-11 rounded-xl bg-card border border-border/40 text-sm text-foreground px-3 outline-none focus:border-accent/50 transition-colors placeholder:text-muted-foreground';
+  const sizes     = getSizes(sizeSystem);
 
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-40 glass-nav border-b border-border/50 px-4 py-3.5">
         <h1 className="font-display text-lg font-bold text-foreground">List a shoe</h1>
-        <p className="text-[11px] text-muted-foreground mt-0.5">Upload a photo, set your price, and find your match.</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">
+          Upload a photo, set your price, and find your match.
+        </p>
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-5">
         <form onSubmit={handleSubmit} className="space-y-5">
+
           {/* Photo upload */}
           <button
             type="button"
@@ -163,15 +259,39 @@ export default function CreatePage() {
             </div>
           </div>
 
-          {/* Size, Side, Condition */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground font-medium">Size *</label>
-              <select value={form.size} onChange={e => update('size', e.target.value)} className={selectCls}>
-                <option value="">Size</option>
-                {UK_SIZES.map(s => <option key={s} value={s}>UK {s}</option>)}
-              </select>
+          {/* Size system + size dropdown */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                Size system <ConversionTooltip />
+              </label>
+              <SizeSystemToggle value={sizeSystem} onChange={handleSizeSystemChange} />
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground font-medium">Shoe size *</label>
+              <select
+                value={form.size}
+                onChange={e => update('size', e.target.value)}
+                className={selectCls}
+              >
+                <option value="">Select size</option>
+                {sizes.map(s => (
+                  <option key={s} value={s}>
+                    {formatSizeLabel(s, sizeSystem)}
+                  </option>
+                ))}
+              </select>
+              {form.size && (
+                <p className="text-[11px] text-muted-foreground/60 pl-1">
+                  Stored as UK {toUKCanonical(form.size, sizeSystem)} — visible to all buyers in their preferred system.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Side & Condition */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground font-medium">Side *</label>
               <select value={form.side} onChange={e => update('side', e.target.value)} className={selectCls}>
@@ -184,7 +304,7 @@ export default function CreatePage() {
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground font-medium">Condition *</label>
               <select value={form.condition} onChange={e => update('condition', e.target.value)} className={selectCls}>
-                <option value="">Cond.</option>
+                <option value="">Condition</option>
                 {CONDITIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
