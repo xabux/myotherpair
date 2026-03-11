@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info, Eye, EyeOff, Check } from 'lucide-react';
+import { Country, City } from 'country-state-city';
+import { getPasswordStrength } from '../../lib/passwordStrength';
+import { SUPPORTED_COUNTRY_CODES } from '../../lib/countries';
 import {
   type SizeSystem,
   getSizes,
@@ -12,6 +15,50 @@ import {
   toUKCanonical,
   detectSizeSystem,
 } from '../../lib/sizeConversion';
+
+// ─── Password strength bar ────────────────────────────────────────────────────
+
+function PasswordStrengthBar({ password }: { password: string }) {
+  const result = useMemo(() => getPasswordStrength(password), [password]);
+  if (!password) return null;
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* 5-segment bar */}
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div
+            key={i}
+            className={`flex-1 h-1 rounded-full transition-all duration-300 ${
+              i <= result.score ? result.barColor : 'bg-border'
+            }`}
+          />
+        ))}
+      </div>
+      {/* Label */}
+      <div className="flex items-center justify-between">
+        <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+          {result.checks.map(c => (
+            <span
+              key={c.label}
+              className={`text-[10px] flex items-center gap-0.5 transition-colors ${
+                c.pass ? 'text-green-500' : 'text-muted-foreground/60'
+              }`}
+            >
+              {c.pass ? <Check className="h-2.5 w-2.5" /> : <span className="w-2.5 h-2.5 flex items-center justify-center text-[8px]">○</span>}
+              {c.label}
+            </span>
+          ))}
+        </div>
+        {result.label && (
+          <span className={`text-[10px] font-semibold shrink-0 ml-2 ${result.color}`}>
+            {result.label}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 
@@ -65,10 +112,7 @@ function ConversionTooltip() {
 
 // ─── Size system toggle ───────────────────────────────────────────────────────
 
-interface SizeSystemToggleProps {
-  value: SizeSystem;
-  onChange: (v: SizeSystem) => void;
-}
+interface SizeSystemToggleProps { value: SizeSystem; onChange: (v: SizeSystem) => void; }
 
 function SizeSystemToggle({ value, onChange }: SizeSystemToggleProps) {
   return (
@@ -93,12 +137,7 @@ function SizeSystemToggle({ value, onChange }: SizeSystemToggleProps) {
 
 // ─── Size select ──────────────────────────────────────────────────────────────
 
-interface SizeSelectProps {
-  system: SizeSystem;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}
+interface SizeSelectProps { system: SizeSystem; value: string; onChange: (v: string) => void; placeholder?: string; }
 
 function SizeSelect({ system, value, onChange, placeholder = 'Select size' }: SizeSelectProps) {
   const sizes = getSizes(system);
@@ -109,11 +148,7 @@ function SizeSelect({ system, value, onChange, placeholder = 'Select size' }: Si
       className="w-full h-12 rounded-xl bg-background border border-input text-sm text-foreground px-3 outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors appearance-none"
     >
       <option value="">{placeholder}</option>
-      {sizes.map(s => (
-        <option key={s} value={s}>
-          {formatSizeLabel(s, system)}
-        </option>
-      ))}
+      {sizes.map(s => <option key={s} value={s}>{formatSizeLabel(s, system)}</option>)}
     </select>
   );
 }
@@ -121,142 +156,134 @@ function SizeSelect({ system, value, onChange, placeholder = 'Select size' }: Si
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 interface FormState {
-  name: string;
-  email: string;
-  password: string;
-  location: string;
-  sizeSystem: SizeSystem;
-  leftFootSize: string;
+  firstName:     string;
+  lastName:      string;
+  email:         string;
+  password:      string;
+  countryCode:   string;
+  city:          string;
+  sizeSystem:    SizeSystem;
+  leftFootSize:  string;
   rightFootSize: string;
-  isAmputee: boolean;
-  amputeeSide: '' | 'left' | 'right';
+  isAmputee:     boolean;
+  amputeeSide:   '' | 'left' | 'right';
   neededFootSize: string;
 }
+
+const ALL_COUNTRIES = Country.getAllCountries().filter(c => SUPPORTED_COUNTRY_CODES.has(c.isoCode));
 
 export default function SignupPage() {
   const router = useRouter();
 
-  const [step, setStep]       = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [step,      setStep]      = useState(1);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState('');
   const [authError, setAuthError] = useState('');
+  const [showPass,  setShowPass]  = useState(false);
 
   const [form, setForm] = useState<FormState>({
-    name: '', email: '', password: '', location: '',
+    firstName: '', lastName: '', email: '', password: '',
+    countryCode: '', city: '',
     sizeSystem: 'UK',
     leftFootSize: '', rightFootSize: '',
-    isAmputee: false,
-    amputeeSide: '',
-    neededFootSize: '',
+    isAmputee: false, amputeeSide: '', neededFootSize: '',
   });
 
-  // Detect locale-preferred size system on mount
   useEffect(() => {
     setForm(p => ({ ...p, sizeSystem: detectSizeSystem() }));
   }, []);
 
+  const cities = useMemo(() => {
+    if (!form.countryCode) return [];
+    return City.getCitiesOfCountry(form.countryCode) ?? [];
+  }, [form.countryCode]);
+
   const update = (key: keyof FormState, value: string | boolean) =>
     setForm(p => ({ ...p, [key]: value }));
 
-  const changeSizeSystem = (sys: SizeSystem) => {
-    setForm(p => ({
-      ...p,
-      sizeSystem: sys,
-      leftFootSize: '',
-      rightFootSize: '',
-      neededFootSize: '',
-    }));
-  };
+  const strength = useMemo(() => getPasswordStrength(form.password), [form.password]);
 
   // Step 1 → Step 2
   function handleStep1(e: FormEvent) {
     e.preventDefault();
     setError('');
-    if (!form.name || !form.email || !form.password || !form.location) {
-      setError('Please fill in all fields.');
-      return;
-    }
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
+    if (!form.firstName.trim()) { setError('First name is required.'); return; }
+    if (!form.lastName.trim())  { setError('Last name is required.'); return; }
+    if (!form.email)            { setError('Email is required.'); return; }
+    if (!form.countryCode)      { setError('Please select your country.'); return; }
+    if (!form.city.trim())      { setError('Please enter your city.'); return; }
+    if (strength.score < 3)     { setError('Password is too weak. Please use a stronger password.'); return; }
     setStep(2);
   }
 
-  // Step 2 → submit to Supabase
+  // Step 2 → submit
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
 
     if (form.isAmputee) {
       if (!form.amputeeSide || !form.neededFootSize) {
-        setError('Please select which foot you need and its size.');
-        return;
+        setError('Please select which foot you need and its size.'); return;
       }
     } else {
       if (!form.leftFootSize || !form.rightFootSize) {
-        setError('Please select both foot sizes.');
-        return;
+        setError('Please select both foot sizes.'); return;
       }
     }
 
     setLoading(true);
     setAuthError('');
 
-    // Convert sizes to UK canonical for storage
     const leftUK   = form.isAmputee ? null : toUKCanonical(form.leftFootSize, form.sizeSystem);
     const rightUK  = form.isAmputee ? null : toUKCanonical(form.rightFootSize, form.sizeSystem);
     const neededUK = form.isAmputee ? toUKCanonical(form.neededFootSize, form.sizeSystem) : null;
+    const countryName  = ALL_COUNTRIES.find(c => c.isoCode === form.countryCode)?.name ?? form.countryCode;
+    const fullName     = `${form.firstName.trim()} ${form.lastName.trim()}`;
+    const locationStr  = `${form.city.trim()}, ${countryName}`;
 
     const { data, error: signUpErr } = await supabase.auth.signUp({
-      email: form.email,
+      email:    form.email,
       password: form.password,
       options: {
         data: {
-          full_name:       form.name,
-          location:        form.location,
-          left_foot_size:  leftUK,
-          right_foot_size: rightUK,
-          is_amputee:      form.isAmputee,
-          amputee_side:    form.amputeeSide || null,
+          full_name:        fullName,
+          location:         locationStr,
+          left_foot_size:   leftUK,
+          right_foot_size:  rightUK,
+          is_amputee:       form.isAmputee,
+          amputee_side:     form.amputeeSide || null,
           needed_foot_size: neededUK,
-          size_system:     form.sizeSystem,
+          size_system:      form.sizeSystem,
         },
       },
     });
 
-    if (signUpErr) {
-      setAuthError(signUpErr.message);
-      setLoading(false);
-      return;
-    }
+    if (signUpErr) { setAuthError(signUpErr.message); setLoading(false); return; }
+
+    const profilePayload = {
+      name:            fullName,
+      location:        locationStr,
+      foot_size_left:  leftUK,
+      foot_size_right: rightUK,
+      is_amputee:      form.isAmputee,
+    };
 
     if (data.session) {
-      // Auto-confirmed (e.g. local dev with email confirmation disabled)
-      // Create profile immediately
       const uid = data.session.user.id;
-      await supabase.from('users').upsert({
-        id:              uid,
-        email:           form.email,
-        name:            form.name            ?? null,
-        location:        form.location         ?? null,
-        foot_size_left:  leftUK,
-        foot_size_right: rightUK,
-        is_amputee:      form.isAmputee,
-      });
+      await supabase.from('users').upsert({ id: uid, email: form.email, ...profilePayload });
       router.replace('/app');
     } else {
-      // Email OTP required — store profile data so verify-otp page can create it after verification
-      sessionStorage.setItem('signup_profile', JSON.stringify({
-        name:            form.name,
-        location:        form.location,
-        foot_size_left:  leftUK,
-        foot_size_right: rightUK,
-        is_amputee:      form.isAmputee,
-      }));
+      sessionStorage.setItem('signup_profile', JSON.stringify(profilePayload));
       router.replace(`/verify-otp?email=${encodeURIComponent(form.email)}`);
     }
   }
+
+  const changeSizeSystem = (sys: SizeSystem) => {
+    setForm(p => ({ ...p, sizeSystem: sys, leftFootSize: '', rightFootSize: '', neededFootSize: '' }));
+  };
+
+  const inputCls = 'w-full bg-background border border-input text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-12';
+  const selectCls = 'w-full bg-background border border-input text-foreground text-sm px-4 py-3 rounded-xl outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-12 appearance-none';
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -269,23 +296,17 @@ export default function SignupPage() {
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
-        <span className="font-display text-sm font-bold text-foreground tracking-[0.08em] uppercase">
-          myotherpair
-        </span>
+        <span className="font-display text-sm font-bold text-foreground tracking-[0.08em] uppercase">myotherpair</span>
         <div className="w-14" />
       </div>
 
       <div className="flex-1 flex items-start justify-center px-4 pt-4 pb-8">
         <div className="w-full max-w-sm animate-fade-in">
 
-          {/* Progress bar */}
+          {/* Progress */}
           <div className="flex gap-2 mb-8">
             <div className="flex-1 h-1 rounded-full bg-accent" />
-            <div
-              className={`flex-1 h-1 rounded-full transition-colors duration-300 ${
-                step === 2 ? 'bg-accent' : 'bg-muted'
-              }`}
-            />
+            <div className={`flex-1 h-1 rounded-full transition-colors duration-300 ${step === 2 ? 'bg-accent' : 'bg-muted'}`} />
           </div>
 
           <span className="text-[10px] font-bold text-accent uppercase tracking-widest mb-2 block">
@@ -295,25 +316,40 @@ export default function SignupPage() {
             {step === 1 ? 'Create your account' : 'About your feet'}
           </h1>
           <p className="text-sm text-muted-foreground mb-8">
-            {step === 1
-              ? 'Join the community for perfectly matched shoes.'
-              : 'So we can find your ideal match.'}
+            {step === 1 ? 'Join the community for perfectly matched shoes.' : 'So we can find your ideal match.'}
           </p>
 
-          {/* ── Step 1: account details ──────────────────────────────────── */}
+          {/* ── Step 1 ─────────────────────────────────────────────────────── */}
           {step === 1 && (
             <form onSubmit={handleStep1} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground font-medium block">Full name</label>
-                <input
-                  value={form.name}
-                  onChange={e => update('name', e.target.value)}
-                  placeholder="Your name"
-                  required
-                  className="w-full bg-background border border-input text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-12"
-                />
+
+              {/* First / Last name */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium block">First name</label>
+                  <input
+                    value={form.firstName}
+                    onChange={e => update('firstName', e.target.value)}
+                    placeholder="Jane"
+                    required
+                    autoComplete="given-name"
+                    className={inputCls}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium block">Last name</label>
+                  <input
+                    value={form.lastName}
+                    onChange={e => update('lastName', e.target.value)}
+                    placeholder="Doe"
+                    required
+                    autoComplete="family-name"
+                    className={inputCls}
+                  />
+                </div>
               </div>
 
+              {/* Email */}
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium block">Email</label>
                 <input
@@ -322,32 +358,84 @@ export default function SignupPage() {
                   onChange={e => update('email', e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full bg-background border border-input text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-12"
+                  autoComplete="email"
+                  className={inputCls}
                 />
               </div>
 
+              {/* Password */}
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium block">Password</label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={e => update('password', e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  minLength={6}
-                  className="w-full bg-background border border-input text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-12"
-                />
+                <div className="relative">
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={e => update('password', e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    autoComplete="new-password"
+                    className={inputCls + ' pr-11'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(v => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                    aria-label="Toggle password"
+                  >
+                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <PasswordStrengthBar password={form.password} />
               </div>
 
+              {/* Country */}
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground font-medium block">Location</label>
+                <label className="text-xs text-muted-foreground font-medium block">Country</label>
+                <div className="relative">
+                  <select
+                    value={form.countryCode}
+                    onChange={e => { update('countryCode', e.target.value); update('city', ''); }}
+                    required
+                    className={selectCls + ' text-' + (form.countryCode ? 'foreground' : 'muted-foreground/50')}
+                  >
+                    <option value="">Select your country</option>
+                    {ALL_COUNTRIES.map(c => (
+                      <option key={c.isoCode} value={c.isoCode}>{c.flag} {c.name}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* City */}
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground font-medium block">City</label>
                 <input
-                  value={form.location}
-                  onChange={e => update('location', e.target.value)}
-                  placeholder="e.g. London, UK"
+                  list="city-options"
+                  value={form.city}
+                  onChange={e => update('city', e.target.value)}
+                  placeholder={form.countryCode ? 'Start typing your city…' : 'Select a country first'}
+                  disabled={!form.countryCode}
                   required
-                  className="w-full bg-background border border-input text-foreground placeholder-muted-foreground/50 text-sm px-4 py-3 rounded-xl outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-12"
+                  autoComplete="off"
+                  className={inputCls + ' disabled:opacity-40 disabled:cursor-not-allowed'}
                 />
+                {cities.length > 0 && (
+                  <datalist id="city-options">
+                    {cities.slice(0, 500).map(c => (
+                      <option key={`${c.name}-${c.stateCode}`} value={c.name} />
+                    ))}
+                  </datalist>
+                )}
+                {form.countryCode && form.city && cities.length > 0 && !cities.some(c => c.name.toLowerCase() === form.city.toLowerCase()) && (
+                  <p className="text-[10px] text-orange-400 mt-1">
+                    City not found in our list for this country — you can still proceed.
+                  </p>
+                )}
               </div>
 
               {error && (
@@ -366,9 +454,7 @@ export default function SignupPage() {
 
               <p className="text-sm text-muted-foreground text-center mt-4">
                 Already have an account?{' '}
-                <Link href="/login" className="text-accent font-semibold hover:underline">
-                  Log in
-                </Link>
+                <Link href="/login" className="text-accent font-semibold hover:underline">Log in</Link>
               </p>
             </form>
           )}
@@ -377,7 +463,6 @@ export default function SignupPage() {
           {step === 2 && (
             <form onSubmit={handleSubmit} className="space-y-4">
 
-              {/* Size system selector */}
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
                   Sizing system <ConversionTooltip />
@@ -385,7 +470,6 @@ export default function SignupPage() {
                 <SizeSystemToggle value={form.sizeSystem} onChange={changeSizeSystem} />
               </div>
 
-              {/* Amputee toggle */}
               <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50 border border-border/30">
                 <input
                   id="amputee"
@@ -393,34 +477,20 @@ export default function SignupPage() {
                   checked={form.isAmputee}
                   onChange={e => {
                     const v = e.target.checked;
-                    setForm(p => ({
-                      ...p,
-                      isAmputee: v,
-                      amputeeSide: '',
-                      neededFootSize: '',
-                      leftFootSize: '',
-                      rightFootSize: '',
-                    }));
+                    setForm(p => ({ ...p, isAmputee: v, amputeeSide: '', neededFootSize: '', leftFootSize: '', rightFootSize: '' }));
                   }}
                   className="w-4 h-4 accent-[hsl(var(--accent))] cursor-pointer"
                 />
                 <div>
-                  <label htmlFor="amputee" className="text-sm text-foreground cursor-pointer font-medium">
-                    I am an amputee
-                  </label>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    We&apos;ll only ask for the foot you need a shoe for
-                  </p>
+                  <label htmlFor="amputee" className="text-sm text-foreground cursor-pointer font-medium">I am an amputee</label>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">We&apos;ll only ask for the foot you need a shoe for</p>
                 </div>
               </div>
 
-              {/* Amputee flow */}
               {form.isAmputee ? (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground font-medium">
-                      Which foot do you need a shoe for?
-                    </label>
+                    <label className="text-xs text-muted-foreground font-medium">Which foot do you need a shoe for?</label>
                     <div className="grid grid-cols-2 gap-3">
                       {(['left', 'right'] as const).map(side => (
                         <button
@@ -433,33 +503,19 @@ export default function SignupPage() {
                               : 'bg-muted/50 text-muted-foreground border-border/30 hover:border-border'
                           }`}
                         >
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              side === 'left' ? 'bg-left-shoe' : 'bg-right-shoe'
-                            }`}
-                          />
+                          <span className={`w-2 h-2 rounded-full ${side === 'left' ? 'bg-left-shoe' : 'bg-right-shoe'}`} />
                           {side.charAt(0).toUpperCase() + side.slice(1)} foot
                         </button>
                       ))}
                     </div>
                   </div>
-
                   {form.amputeeSide && (
                     <div className="space-y-1.5 animate-fade-in">
                       <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                        <span
-                          className={`w-2 h-2 rounded-full ${
-                            form.amputeeSide === 'left' ? 'bg-left-shoe' : 'bg-right-shoe'
-                          }`}
-                        />
-                        {form.amputeeSide.charAt(0).toUpperCase() + form.amputeeSide.slice(1)} foot
-                        size
+                        <span className={`w-2 h-2 rounded-full ${form.amputeeSide === 'left' ? 'bg-left-shoe' : 'bg-right-shoe'}`} />
+                        {form.amputeeSide.charAt(0).toUpperCase() + form.amputeeSide.slice(1)} foot size
                       </label>
-                      <SizeSelect
-                        system={form.sizeSystem}
-                        value={form.neededFootSize}
-                        onChange={v => update('neededFootSize', v)}
-                      />
+                      <SizeSelect system={form.sizeSystem} value={form.neededFootSize} onChange={v => update('neededFootSize', v)} />
                     </div>
                   )}
                 </>
@@ -468,30 +524,17 @@ export default function SignupPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-left-shoe" />
-                        Left foot
+                        <span className="w-2 h-2 rounded-full bg-left-shoe" /> Left foot
                       </label>
-                      <SizeSelect
-                        system={form.sizeSystem}
-                        value={form.leftFootSize}
-                        onChange={v => update('leftFootSize', v)}
-                        placeholder="Size"
-                      />
+                      <SizeSelect system={form.sizeSystem} value={form.leftFootSize} onChange={v => update('leftFootSize', v)} placeholder="Size" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-right-shoe" />
-                        Right foot
+                        <span className="w-2 h-2 rounded-full bg-right-shoe" /> Right foot
                       </label>
-                      <SizeSelect
-                        system={form.sizeSystem}
-                        value={form.rightFootSize}
-                        onChange={v => update('rightFootSize', v)}
-                        placeholder="Size"
-                      />
+                      <SizeSelect system={form.sizeSystem} value={form.rightFootSize} onChange={v => update('rightFootSize', v)} placeholder="Size" />
                     </div>
                   </div>
-
                   {form.leftFootSize && form.rightFootSize && form.leftFootSize !== form.rightFootSize && (
                     <div className="p-4 rounded-xl bg-match-green/[0.08] border border-match-green/20 animate-fade-in">
                       <p className="text-xs font-semibold text-match-green flex items-center gap-2">
@@ -525,9 +568,7 @@ export default function SignupPage() {
                     </svg>
                     Creating account…
                   </>
-                ) : (
-                  'Create account'
-                )}
+                ) : 'Create account'}
               </button>
             </form>
           )}
