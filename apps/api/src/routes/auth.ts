@@ -81,13 +81,21 @@ router.post('/sign-in', authLimiter, async (req: Request, res: Response) => {
   });
 });
 
-// POST /auth/sign-out
-router.post('/sign-out', async (req: Request, res: Response) => {
+// POST /auth/sign-out — requires a valid token so we can revoke it
+router.post('/sign-out', authLimiter, async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
-    await supabase.auth.admin.signOut(token);
+  if (!authHeader?.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Authorization header required' });
+    return;
   }
+  const token = authHeader.slice(7);
+  // Verify the token is valid before revoking (prevents token-scanning abuse)
+  const { error: userErr } = await supabase.auth.getUser(token);
+  if (userErr) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+    return;
+  }
+  await supabase.auth.admin.signOut(token);
   res.json({ data: { message: 'Signed out' } });
 });
 

@@ -108,7 +108,7 @@ export default function DiscoverScreen() {
 
   async function recordSwipe(dir: string) {
     if (!userId || !current) return;
-    await supabase.from('swipes').upsert({ user_id: userId, listing_id: current.id, direction: dir });
+    await supabase.from('swipes').upsert({ swiper_id: userId, listing_id: current.id, direction: dir });
   }
 
   if (loading) {

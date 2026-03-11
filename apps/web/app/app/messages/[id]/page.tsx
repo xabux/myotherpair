@@ -140,7 +140,7 @@ export default function MessageThreadPage({ params }: PageProps) {
 
   const sendMessage = async () => {
     if (!newMsg.trim() || !userId || !matchId || sending) return;
-    const text = newMsg.trim();
+    const text = newMsg.trim().slice(0, 2000);
     setNewMsg('');
     setSending(true);
 

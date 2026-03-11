@@ -248,7 +248,6 @@ function UsersTab() {
   async function deleteUser(id: string) {
     if (!confirm('Delete this user and all their data?')) return;
     await supabase.from('users').delete().eq('id', id);
-    await supabase.auth.admin?.deleteUser(id);
     setUsers(prev => prev.filter(u => u.id !== id));
     setSelected(null);
   }
@@ -605,10 +604,6 @@ export default function AdminPage() {
         .select('email')
         .eq('email', session.user.email ?? '')
         .single();
-
-      // DEBUG — remove after confirming access works
-      console.log('[Admin] session email:', session.user.email);
-      console.log('[Admin] admins row:', data, '| error:', error?.message);
 
       if (!data) { router.replace('/'); return; }
 
