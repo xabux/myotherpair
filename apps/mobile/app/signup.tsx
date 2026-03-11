@@ -27,27 +27,23 @@ export default function SignupScreen() {
     setLoading(true);
     setError('');
 
-    const { data, error: signUpErr } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name } },
-    });
+    const { error: signUpErr } = await supabase.auth.signUp({ email, password });
 
     if (signUpErr) { setError(signUpErr.message); setLoading(false); return; }
 
-    if (data.user) {
-      await supabase.from('users').upsert({
-        id:              data.user.id,
+    // Navigate to OTP screen — profile is created only after email is verified
+    router.push({
+      pathname: '/verify-otp',
+      params: {
         email,
         name,
-        location:        location || null,
-        foot_size_left:  leftSize  ? parseFloat(leftSize)  : null,
-        foot_size_right: rightSize ? parseFloat(rightSize) : null,
-        is_amputee:      isAmputee,
-      });
-    }
-
-    router.replace('/(tabs)');
+        location,
+        leftSize:   leftSize,
+        rightSize:  rightSize,
+        isAmputee:  String(isAmputee),
+      },
+    });
+    setLoading(false);
   };
 
   function SizeButton({ size, selected, onPress }: { size: number; selected: boolean; onPress: () => void }) {

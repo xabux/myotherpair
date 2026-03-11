@@ -232,10 +232,29 @@ export default function SignupPage() {
     }
 
     if (data.session) {
+      // Auto-confirmed (e.g. local dev with email confirmation disabled)
+      // Create profile immediately
+      const uid = data.session.user.id;
+      await supabase.from('users').upsert({
+        id:              uid,
+        email:           form.email,
+        name:            form.name            ?? null,
+        location:        form.location         ?? null,
+        foot_size_left:  leftUK,
+        foot_size_right: rightUK,
+        is_amputee:      form.isAmputee,
+      });
       router.replace('/app');
     } else {
-      // Email confirmation required
-      router.replace('/login?confirmed=1');
+      // Email OTP required — store profile data so verify-otp page can create it after verification
+      sessionStorage.setItem('signup_profile', JSON.stringify({
+        name:            form.name,
+        location:        form.location,
+        foot_size_left:  leftUK,
+        foot_size_right: rightUK,
+        is_amputee:      form.isAmputee,
+      }));
+      router.replace(`/verify-otp?email=${encodeURIComponent(form.email)}`);
     }
   }
 
