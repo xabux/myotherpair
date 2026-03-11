@@ -2,28 +2,30 @@
   "expo": {
     "name": "MyOtherPair",
     "slug": "myotherpair",
+    "scheme": "myotherpair",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#141210",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.myotherpair.app"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "package": "com.myotherpair.app"
+      "package": "com.myotherpair.app",
+      "backgroundColor": "#141210"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-image-picker",
+        { "photosPermission": "MyOtherPair needs access to your photos to upload shoe images." }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
