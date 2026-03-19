@@ -273,9 +273,8 @@ function FiltersPanel({
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
-const SAVED_KEY = 'myotherpair_saved_listings';
-
 export default function BrowsePage() {
+  const [userId,      setUserId]      = useState<string | null>(null);
   const [listings,    setListings]    = useState<Listing[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -284,18 +283,31 @@ export default function BrowsePage() {
   const [saved,       setSaved]       = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
 
+  // Get current user
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) setUserId(session.user.id);
+    });
+  }, []);
+
   // Detect locale size system on mount
   useEffect(() => {
     setSizeSystem(detectSizeSystem());
   }, []);
 
-  // Load saved listings from localStorage
+  // Load saved listing IDs from Supabase
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SAVED_KEY);
-      if (raw) setSaved(new Set(JSON.parse(raw) as string[]));
-    } catch { /* ignore */ }
-  }, []);
+    if (!userId) return;
+    (async () => {
+      const { data } = await supabase
+        .from('saved_listings')
+        .select('listing_id')
+        .eq('user_id', userId);
+      if (data) {
+        setSaved(new Set((data as { listing_id: string }[]).map(r => r.listing_id)));
+      }
+    })();
+  }, [userId]);
 
   // Fetch listings from Supabase
   useEffect(() => {
@@ -325,14 +337,21 @@ export default function BrowsePage() {
     })();
   }, []);
 
-  // Toggle save
-  const toggleSave = (id: string) => {
+  // Toggle save — insert or delete from Supabase
+  const toggleSave = async (id: string) => {
+    if (!userId) return;
+    const isSaved = saved.has(id);
+    // Optimistic UI update
     setSaved(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      try { localStorage.setItem(SAVED_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+      isSaved ? next.delete(id) : next.add(id);
       return next;
     });
+    if (isSaved) {
+      await supabase.from('saved_listings').delete().eq('user_id', userId).eq('listing_id', id);
+    } else {
+      await supabase.from('saved_listings').insert({ user_id: userId, listing_id: id });
+    }
   };
 
   // Dynamic brand list from loaded listings

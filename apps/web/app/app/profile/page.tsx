@@ -42,7 +42,6 @@ interface SavedListing {
   photos: string[];
 }
 
-const SAVED_KEY = 'myotherpair_saved_listings';
 
 const fadeUp = (delay = 0) => ({
   initial:    { opacity: 0, y: 10 },
@@ -124,33 +123,30 @@ export default function ProfilePage() {
     })();
   }, [userId]);
 
-  // Load saved listing IDs from localStorage
+  // Load saved listings from Supabase (joined with listing details)
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SAVED_KEY);
-      const ids: string[] = raw ? JSON.parse(raw) : [];
-      setSavedIds(ids);
-    } catch { /* ignore */ }
-  }, []);
-
-  // Fetch saved listing details whenever IDs change
-  useEffect(() => {
-    if (!savedIds.length) { setSavedListings([]); return; }
+    if (!userId) return;
     (async () => {
       const { data } = await supabase
-        .from('listings')
-        .select('id, shoe_brand, shoe_model, size, foot_side, price, photos')
-        .in('id', savedIds)
-        .eq('status', 'active');
-      setSavedListings((data ?? []) as SavedListing[]);
-    })();
-  }, [savedIds]);
+        .from('saved_listings')
+        .select('listing_id, listings(id, shoe_brand, shoe_model, size, foot_side, price, photos)')
+        .eq('user_id', userId);
 
-  const unsaveListing = (id: string) => {
-    const next = savedIds.filter(s => s !== id);
-    setSavedIds(next);
+      if (data) {
+        const listings = (data as { listing_id: string; listings: SavedListing | null }[])
+          .map(r => r.listings)
+          .filter((l): l is SavedListing => l !== null && (l as SavedListing & { status?: string }).status !== 'deleted');
+        setSavedListings(listings);
+        setSavedIds(listings.map(l => l.id));
+      }
+    })();
+  }, [userId]);
+
+  const unsaveListing = async (id: string) => {
+    if (!userId) return;
+    setSavedIds(prev => prev.filter(s => s !== id));
     setSavedListings(prev => prev.filter(l => l.id !== id));
-    try { localStorage.setItem(SAVED_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    await supabase.from('saved_listings').delete().eq('user_id', userId).eq('listing_id', id);
   };
 
   const handleSignOut = async () => {
