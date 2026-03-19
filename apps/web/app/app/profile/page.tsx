@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import {
   MapPin, Edit, Search, Check, X,
   ChevronRight, ShoppingBag, Settings,
-  HelpCircle, LogOut, PlusCircle, MessageCircle,
+  HelpCircle, LogOut, PlusCircle, MessageCircle, Heart,
 } from 'lucide-react';
 import { formatSizeLabel } from '../../../lib/sizeConversion';
 import { useTheme } from '../../../lib/theme';
@@ -31,6 +31,18 @@ interface Stats {
   matches:  number;
   trades:   number;
 }
+
+interface SavedListing {
+  id: string;
+  shoe_brand: string;
+  shoe_model: string;
+  size: number;
+  foot_side: string;
+  price: number | null;
+  photos: string[];
+}
+
+const SAVED_KEY = 'myotherpair_saved_listings';
 
 const fadeUp = (delay = 0) => ({
   initial:    { opacity: 0, y: 10 },
@@ -78,6 +90,8 @@ export default function ProfilePage() {
   const [searchStatus,  setSearchStatus]  = useState('');
   const [editingStatus, setEditingStatus] = useState(false);
   const [statusDraft,   setStatusDraft]   = useState('');
+  const [savedListings, setSavedListings] = useState<SavedListing[]>([]);
+  const [savedIds,      setSavedIds]      = useState<string[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -109,6 +123,35 @@ export default function ProfilePage() {
       setLoading(false);
     })();
   }, [userId]);
+
+  // Load saved listing IDs from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SAVED_KEY);
+      const ids: string[] = raw ? JSON.parse(raw) : [];
+      setSavedIds(ids);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Fetch saved listing details whenever IDs change
+  useEffect(() => {
+    if (!savedIds.length) { setSavedListings([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from('listings')
+        .select('id, shoe_brand, shoe_model, size, foot_side, price, photos')
+        .in('id', savedIds)
+        .eq('status', 'active');
+      setSavedListings((data ?? []) as SavedListing[]);
+    })();
+  }, [savedIds]);
+
+  const unsaveListing = (id: string) => {
+    const next = savedIds.filter(s => s !== id);
+    setSavedIds(next);
+    setSavedListings(prev => prev.filter(l => l.id !== id));
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -258,6 +301,87 @@ export default function ProfilePage() {
               </div>
             </div>
           </Link>
+        </motion.div>
+
+        {/* Saved Listings */}
+        <motion.div {...fadeUp(0.09)} className="px-5 pt-1 pb-3">
+          <div className="border border-border/40 bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Heart className="h-3.5 w-3.5 text-accent" />
+                <span className="text-[11px] font-bold text-foreground tracking-[0.08em] uppercase">
+                  Saved Listings
+                </span>
+                {savedIds.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground/50">({savedIds.length})</span>
+                )}
+              </div>
+              {savedListings.length > 0 && (
+                <Link href="/app/browse" className="text-[11px] text-accent font-semibold hover:underline">
+                  Browse more
+                </Link>
+              )}
+            </div>
+
+            {savedListings.length === 0 ? (
+              <div className="text-center py-5">
+                <Heart className="h-6 w-6 text-muted-foreground/20 mx-auto mb-2" />
+                <p className="text-[12px] text-muted-foreground/40">No saved listings yet</p>
+                <Link href="/app/browse" className="text-[11px] text-accent font-semibold mt-1 inline-block hover:underline">
+                  Browse listings
+                </Link>
+              </div>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory">
+                {savedListings.map(listing => {
+                  const sideLabel = listing.foot_side === 'L' ? 'L' : listing.foot_side === 'R' ? 'R' : '—';
+                  return (
+                    <div key={listing.id} className="flex-shrink-0 w-32 snap-start relative group">
+                      <Link href={`/app/listing/${listing.id}`} className="block">
+                        <div className="aspect-square rounded-xl overflow-hidden bg-muted relative mb-1.5">
+                          {listing.photos[0] ? (
+                            <img
+                              src={listing.photos[0]}
+                              alt={`${listing.shoe_brand} ${listing.shoe_model}`}
+                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-3xl opacity-20">👟</div>
+                          )}
+                          <div className="absolute bottom-1 left-1">
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                              listing.foot_side === 'L'
+                                ? 'bg-left-shoe text-white'
+                                : listing.foot_side === 'R'
+                                ? 'bg-right-shoe text-white'
+                                : 'bg-muted-foreground/60 text-white'
+                            }`}>
+                              {sideLabel}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-[11px] font-semibold text-foreground truncate leading-tight">
+                          {listing.shoe_brand}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground truncate">{listing.shoe_model}</p>
+                        <p className="text-[11px] font-bold text-foreground mt-0.5">
+                          {listing.price != null ? `$${listing.price}` : '$—'}
+                        </p>
+                      </Link>
+                      {/* Unsave button */}
+                      <button
+                        onClick={() => unsaveListing(listing.id)}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label="Remove from saved"
+                      >
+                        <X className="h-2.5 w-2.5 text-muted-foreground" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </motion.div>
 
         {/* Menu sections */}
