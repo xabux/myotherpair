@@ -393,6 +393,8 @@ export default function SignupPage() {
                 <label className="text-xs text-muted-foreground font-medium block">Country</label>
                 <div className="relative">
                   <select
+                    id="country"
+                    aria-label="Country"
                     value={form.countryCode}
                     onChange={e => { update('countryCode', e.target.value); update('city', ''); }}
                     required
